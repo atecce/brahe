@@ -1,3 +1,5 @@
+import nltk
+
 class song:
 
 	artist = str()
@@ -16,3 +18,5 @@ class song:
 		with open(filename) as f:
 
 			self.lyrics = f.read()
+
+		self.tokens = nltk.word_tokenize(self.lyrics)
