@@ -13,4 +13,4 @@ class Bug:
 
 for song in Bug.songs:
 
-	print song.lyrics
+	print song.pos_tags

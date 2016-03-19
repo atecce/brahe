@@ -20,3 +20,5 @@ class song:
 			self.lyrics = f.read()
 
 		self.tokens = nltk.word_tokenize(self.lyrics)
+
+		self.pos_tags = nltk.pos_tag(self.tokens)
