@@ -15,4 +15,4 @@ class song:
 
 		with open(filename) as f:
 
-			lyrics = f.read()
+			self.lyrics = f.read()
