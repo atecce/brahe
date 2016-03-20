@@ -5,14 +5,25 @@ import requests
 from bs4 import BeautifulSoup
 
 # set url
-url = 'http://www.metrolyrics.com'
+urls = {
+		'http://www.metrolyrics.com',
+		'http://www.lyricsfreak.com',
+		'http://www.lyrics.net'
+       }
 
-# get page
-page = requests.get(url)
+# for each url
+for url in urls:
 
-# get soup
-soup = BeautifulSoup(page.content, 'lxml')
+	print
+	print url
+	print
 
-for link in soup.find_all('a'):
+	# get page
+	page = requests.get(url)
 
-	print link.get('href')
+	# get soup
+	soup = BeautifulSoup(page.content, 'lxml')
+
+	for link in soup.find_all('a'):
+
+		print '\t'+str(link.get('href'))
