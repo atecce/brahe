@@ -13,6 +13,6 @@ page = requests.get(url)
 # get soup
 soup = BeautifulSoup(page.content, 'lxml')
 
-for item in soup.find_all('li'):
+for link in soup.find_all('a'):
 
-	print item
+	print link.get('href')
