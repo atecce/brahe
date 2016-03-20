@@ -2,6 +2,7 @@ from song import song
 
 class Bug:
 
+	# playlist is ordered
 	songs = [
 			song("Broken Social Scene", 	    			    "Forgiveness Rock Record",  11, "Sweetest Kill", 		"sweetest_kill.txt"),
 			song("M83", 		    	    			    "Hurry Up, We're Dreaming",  6, "Raconte-Moi Une Histoire", "raconte-moi_une_histoire.txt"),
@@ -13,4 +14,10 @@ class Bug:
 
 for song in Bug.songs:
 
-	print song.pos_tags
+	print
+	print song.title
+	print
+
+	for token in song.token_distribution:
+
+		print '\t'+token, song.token_distribution[token]
