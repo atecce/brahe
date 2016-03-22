@@ -9,7 +9,8 @@ class Bug:
 			song("Radiohead", 	    	    			    "Hail to the Thief",  	 9, "There, There", 		"there_there.txt"),
 			song("Daughter", 	    	    			    "If You Leave",  	 	 3, "Youth", 			"youth.txt"),
 			song("Handome Boy Modeling School (feat. Roisin & J-Live)", "So.. How's Your Girl",  	 3, "The Truth", 		"the_truth.txt"),
-			song("Eminem (feat. Rihanna)", 				    "Recovery",  	 	15, "Love the Way You Lie", 	"love_the_way_you_lie.txt")
+			song("Eminem (feat. Rihanna)", 				    "Recovery",  	 	15, "Love the Way You Lie", 	"love_the_way_you_lie.txt"),
+			song("Elliott Smith", 				    	    "Roman Candle",  	 	15, "No Name #3", 		"no_name_3.txt")
 		]
 
 for song in Bug.songs:
