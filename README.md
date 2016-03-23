@@ -1,2 +1,1 @@
-Stay hungry, stay foolish
-Be curious, think different
+Stay hungry. Stay foolish. Be curious. Think different.
