@@ -4,17 +4,22 @@
 # But, if possible, to stimulate someone to thoughts of their own.
 #
 
+# need this for inspiration
+from inspiration.song import song
+
 # need these to get and parse html
 from bs4 import BeautifulSoup
 import requests
+import re
 
 # set up main page
-root_url  = 'http://www.lyrics.net'
+root_url  = 'http://www.lyrics.net/'
 main_page = requests.get(root_url)
 main_soup = BeautifulSoup(main_page.content, 'lxml')
 
-# keep this to skip collected urls
-subalphabet_urls = list()
+# keep these to skip collected urls
+subalphabet_suburls = list()
+artist_urls 	    = list()
 
 # crawl the main page
 for link in main_soup.find_all('a'):
@@ -45,13 +50,77 @@ for link in main_soup.find_all('a'):
 			if 'artists' in alphabet_link.get('href'):
 			
 				# the rest are subalphabet links
-				subalphabet_url = alphabet_link.get('href')
+				subalphabet_suburl = alphabet_link.get('href')
 
 				# skip links already accumulated
-				if subalphabet_url in subalphabet_urls: continue
+				if subalphabet_suburl in subalphabet_suburls: continue
 
 				# accumulate links
-				print '\t', subalphabet_url
-				subalphabet_urls.append(subalphabet_url)
+				subalphabet_suburls.append(subalphabet_suburl)
 
-for url in subalphabet_urls: print url
+				print
+				print '\t', subalphabet_suburl
+				print
+
+				# set up subalphabet page	
+				subalphabet_page = requests.get(root_url + subalphabet_suburl)
+				subalphabet_soup = BeautifulSoup(subalphabet_page.content, 'lxml')
+
+				# crawl the subalphabet page
+				for subalphabet_link in subalphabet_soup.find_all('a'):
+
+					# filter out unwanted links
+					if re.match(r'^/.*', subalphabet_link.get('href')): continue
+
+					if 'http' 	in subalphabet_link.get('href'): continue 
+					if '.php' 	in subalphabet_link.get('href'): continue
+					if 'javascript' in subalphabet_link.get('href'): continue
+
+					if root_url + subalphabet_link.get('href') == root_url: continue
+
+					# remaining results are artist urls
+					artist_url = root_url + subalphabet_link.get('href')
+
+					# skip links already accumulated
+					if artist_url in artist_urls: continue
+
+					# set artist name
+					artist_name = re.match(r'.*/(.*)/.*', artist_url).group(1)
+					print '\t\t', artist_name
+					print
+
+					# accumulate links
+					artist_urls.append(artist_url)
+
+					# get up artist page page
+					artist_page = requests.get(artist_url)
+					artist_soup = BeautifulSoup(artist_page.content, 'lxml')
+
+					for item in artist_soup.find_all('strong'):
+
+						links = item.find_all('a')
+
+						if links:
+
+							song_title = item.find_all('a')[0].text.encode('ascii', 'ignore')
+
+							song_url = root_url + item.find_all('a')[0].get('href')
+
+							new = song(artist_name, song_title, song_url)
+
+#							print
+#							print '\t\t\t', song_title
+#							print '\t\t\t', song_url			
+#							print
+#
+#							# get up artist page page
+#							song_page = requests.get(song_url)
+#							song_soup = BeautifulSoup(song_page.content, 'lxml')
+#
+#							if song_soup.find_all('pre'):
+#
+#								for line in song_soup.find_all('pre')[0].text.splitlines():
+#
+#									print '\t\t\t\t', line
+#
+#								print
