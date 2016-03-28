@@ -41,7 +41,7 @@ class song:
 
 		# set up page
 		page = requests.get(url)
-		soup = BeautifulSoup(page.content, 'lxml')
+		soup = BeautifulSoup(page.content)
 
 		# get lyrics
 		if soup.find_all('pre'): 
