@@ -96,31 +96,20 @@ for link in main_soup.find_all('a'):
 					artist_page = requests.get(artist_url)
 					artist_soup = BeautifulSoup(artist_page.content, 'lxml')
 
+					# crawl the artist page
 					for item in artist_soup.find_all('strong'):
 
+						# get all the links
 						links = item.find_all('a')
 
+						# make sure there are more than zero
 						if links:
 
+							# set the song title
 							song_title = item.find_all('a')[0].text.encode('ascii', 'ignore')
 
+							# set the song url
 							song_url = root_url + item.find_all('a')[0].get('href')
 
+							# create the song
 							new = song(artist_name, song_title, song_url)
-
-#							print
-#							print '\t\t\t', song_title
-#							print '\t\t\t', song_url			
-#							print
-#
-#							# get up artist page page
-#							song_page = requests.get(song_url)
-#							song_soup = BeautifulSoup(song_page.content, 'lxml')
-#
-#							if song_soup.find_all('pre'):
-#
-#								for line in song_soup.find_all('pre')[0].text.splitlines():
-#
-#									print '\t\t\t\t', line
-#
-#								print

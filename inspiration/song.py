@@ -6,7 +6,14 @@ import re
 # need this for the act of interpretation
 import nltk
 
+# need this to create the canvas
+import os
+
 class song:
+
+	artist = str()
+	title  = str()
+	lyrics = str()
 
 	def __init__(self, artist, title, url):
 
@@ -21,8 +28,14 @@ class song:
 		# read the lyrics from a web page
 		self.inspire(url)
 
+		# set filename
+		filename = 'inspiration/' + artist + '/' + title
+
+		# check for blank canvas
+		if not os.path.exists(os.path.dirname(filename)): os.makedirs(os.path.dirname(filename))
+
 		# write the lyrics to a text file
-		with open('inspiration/' + title, 'w') as f: f.write(self.lyrics)
+		with open(filename, 'w') as f: f.write(self.lyrics)
 
 	def inspire(self, url):
 
@@ -33,7 +46,7 @@ class song:
 		# get lyrics
 		if soup.find_all('pre'): 
 			
-			self.lyrics = soup.find_all('pre')[0].text
+			self.lyrics = soup.find_all('pre')[0].text.encode('ascii', 'ignore')
 
 			print
 
