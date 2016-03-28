@@ -4,79 +4,54 @@
 # But, if possible, to stimulate someone to thoughts of their own.
 #
 
-# need this for pages
+# need these to get and parse html
+from bs4 import BeautifulSoup
 import requests
 
-# need this to parse html
-from bs4 import BeautifulSoup
+# set up main page
+root_url  = 'http://www.lyrics.net'
+main_page = requests.get(root_url)
+main_soup = BeautifulSoup(main_page.content, 'lxml')
 
-# set url
-url = 'http://www.lyrics.net'
+# keep this to skip collected urls
+subalphabet_urls = list()
 
-# get page
-page = requests.get(url)
+# crawl the main page
+for link in main_soup.find_all('a'):
 
-# get soup
-soup = BeautifulSoup(page.content, 'lxml')
+	# filter out unwanted links
+	if '.php' in link.get('href'): continue 
+	if 'http' in link.get('href'): continue
 
-# artist urls
-urls = set()
+	# the rest are alphabet suburls
+	alphabet_suburl = link.get('href')
 
-# for each link
-for link in soup.find_all('a'):
+	# only get links relevant to artists
+	if 'artists' in alphabet_suburl:
 
-	# get the suburl
-	suburl = link.get('href')
-
-	# check for artist subpages
-	if 'artists' in suburl:
-
-		# hacky
-		if '.php' in suburl or 'http' in suburl: continue
-
-		# set artist url
-		alphabet_url = url + suburl
-
-		# get artist page
+		# set up alphabet page
+		alphabet_url  = root_url + alphabet_suburl
 		alphabet_page = requests.get(alphabet_url)
-
-		# get artist soup
 		alphabet_soup = BeautifulSoup(alphabet_page.content, 'lxml')
 
 		print
-		print suburl
+		print alphabet_url
 		print
 
-		# get artist links
+		# crawl the alphabet page
 		for alphabet_link in alphabet_soup.find_all('a'):
 
-	 		sublink = alphabet_link.get('href')
+			# filter out links without 'artists' in them
+			if 'artists' in alphabet_link.get('href'):
+			
+				# the rest are subalphabet links
+				subalphabet_url = alphabet_link.get('href')
 
-			if suburl in sublink:
+				# skip links already accumulated
+				if subalphabet_url in subalphabet_urls: continue
 
-				# set artist url
-				sub_alphabet_url = url + suburl
+				# accumulate links
+				print '\t', subalphabet_url
+				subalphabet_urls.append(subalphabet_url)
 
-				print
-				print '\t', sub_alphabet_url
-				print
-
-				# get artist page
-				sub_alphabet_page = requests.get(sub_alphabet_url)
-
-				# get artist soup
-				sub_alphabet_soup = BeautifulSoup(sub_alphabet_page.content, 'lxml')
-
-				for sub_alphabet_link in sub_alphabet_soup.find_all('a'):
-
-					if 'http' in str(sub_alphabet_link): continue
-
-					if suburl in sub_alphabet_link.get('href'):
-
-						if url + sub_alphabet_link.get('href') in urls: continue
-
-						urls.add(url + sub_alphabet_link.get('href'))
-
-						print '\t\t', url + sub_alphabet_link.get('href')
-
-print urls
+for url in subalphabet_urls: print url
