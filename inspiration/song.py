@@ -21,21 +21,30 @@ class song:
 		self.artist = artist
 		self.title  = title
 
-		print
-		print '\t\t\t', self.title
-		print
-
-		# read the lyrics from a web page
-		self.inspire(url)
-
 		# set filename
 		filename = 'inspiration/' + artist + '/' + title
 
-		# check for blank canvas
-		if not os.path.exists(os.path.dirname(filename)): os.makedirs(os.path.dirname(filename))
+		# check is we already recorded the song
+		if not os.path.isfile(filename):
 
-		# write the lyrics to a text file
-		with open(filename, 'w') as f: f.write(self.lyrics)
+			print
+			print '\t\t\t', self.title
+			print
+
+			# read the lyrics from a web page
+			self.inspire(url)
+
+			# check for blank canvas
+			if not os.path.exists(os.path.dirname(filename)): os.makedirs(os.path.dirname(filename))
+
+			# write the lyrics to a text file
+			try:
+
+				# write the lyrics to the file
+				with open(filename, 'w') as f: f.write(self.lyrics)
+
+			# hacky, introduced because of Pink
+			except IOError: pass
 
 	def inspire(self, url):
 
