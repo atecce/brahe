@@ -15,7 +15,7 @@ import re
 # set up main page
 root_url  = 'http://www.lyrics.net/'
 main_page = requests.get(root_url)
-main_soup = BeautifulSoup(main_page.content, 'lxml')
+main_soup = BeautifulSoup(main_page.content)
 
 # keep these to skip collected urls
 subalphabet_suburls = list()
@@ -37,7 +37,7 @@ for link in main_soup.find_all('a'):
 		# set up alphabet page
 		alphabet_url  = root_url + alphabet_suburl
 		alphabet_page = requests.get(alphabet_url)
-		alphabet_soup = BeautifulSoup(alphabet_page.content, 'lxml')
+		alphabet_soup = BeautifulSoup(alphabet_page.content)
 
 		print
 		print alphabet_url
@@ -64,7 +64,7 @@ for link in main_soup.find_all('a'):
 
 				# set up subalphabet page	
 				subalphabet_page = requests.get(root_url + subalphabet_suburl)
-				subalphabet_soup = BeautifulSoup(subalphabet_page.content, 'lxml')
+				subalphabet_soup = BeautifulSoup(subalphabet_page.content)
 
 				# crawl the subalphabet page
 				for subalphabet_link in subalphabet_soup.find_all('a'):
@@ -94,7 +94,7 @@ for link in main_soup.find_all('a'):
 
 					# get up artist page page
 					artist_page = requests.get(artist_url)
-					artist_soup = BeautifulSoup(artist_page.content, 'lxml')
+					artist_soup = BeautifulSoup(artist_page.content)
 
 					# crawl the artist page
 					for item in artist_soup.find_all('strong'):
