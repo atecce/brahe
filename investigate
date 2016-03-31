@@ -4,8 +4,8 @@
 # But, if possible, to stimulate someone to thoughts of their own.
 #
 
-# need this for inspiration
-from inspiration.song import song
+# need this to make canvas
+import os
 
 # need these to get and parse html
 from bs4 import BeautifulSoup
@@ -111,5 +111,44 @@ for link in main_soup.find_all('a'):
 							# set the song url
 							song_url = root_url + item.find_all('a')[0].get('href')
 
-							# create the song
-							new = song(artist_name, song_title, song_url)
+							# set filename
+							filename = 'inspiration/' + artist_name + '/' + song_title
+
+							# check is we already recorded the song
+							if not os.path.isfile(filename):
+
+								print
+								print '\t\t\t', song_title
+								print
+
+								# set up page
+								song_page = requests.get(song_url)
+								song_soup = BeautifulSoup(song_page.content)
+
+								# get lyrics
+								if song_soup.find_all('pre'): 
+									
+									lyrics = song_soup.find_all('pre')[0].text.encode('ascii', 'ignore')
+
+									print
+
+									for line in lyrics.splitlines():
+
+										print '\t\t\t\t', line
+
+									print
+
+								try:
+
+									# check for blank canvas
+									if not os.path.exists(os.path.dirname(filename)): os.makedirs(os.path.dirname(filename))
+
+
+									# write the lyrics to the file
+									with open(filename, 'w') as f: f.write(lyrics)
+
+								# hacky, introduced because of Pink
+								except IOError: pass
+
+								# hacky introduced because of Beyonce
+								except OSError: pass
