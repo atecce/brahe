@@ -6,10 +6,15 @@
 
 # need this to make canvas
 import os
+import MySQLdb
+
+canvas = MySQLdb.connect('localhost', 'root', '', 'telos')
+brush  = canvas.cursor()
 
 # need these to get and parse html
 from bs4 import BeautifulSoup
 import requests
+import urllib
 import re
 
 # set up main page
@@ -85,7 +90,7 @@ for link in main_soup.find_all('a'):
 					if artist_url in artist_urls: continue
 
 					# get canvas from url
-					priest = re.match(r'.*(artist/.*)/.*', artist_url).group(1)
+					priest = urllib.unquote_plus(re.match(r'.*/(.*)/.*', artist_url).group(1))
 					print '\t\t', priest
 					print
 
@@ -97,75 +102,78 @@ for link in main_soup.find_all('a'):
 					artist_soup = BeautifulSoup(artist_page.content)
 
 					# crawl the artist page
-					for item in artist_soup.find_all('h3'):
+					for header in artist_soup.find_all('h3'):
 
 						# get all the links
-						artist_links = item.find_all('a')
+						artist_links = header.find_all('a')
 
-						# make sure there are more than zero
-						if artist_links:
+						for artist_link in artist_links:
 
-							for artist_link in artist_links:
+							# filter out unwanted links
+							if 'artist'     in artist_link.get('href'): continue
+							if 'javascript' in artist_link.get('href'): continue
 
-								# filter out unwanted links
-								if 'artist'     in artist_link.get('href'): continue
-								if 'javascript' in artist_link.get('href'): continue
+							# remaining results are albums
+							album_title = re.sub('/', r'\\', artist_link.text).encode('utf8')
+							album_url   = root_url + artist_link.get('href')
 
-								# create a canvas for our artist
-								if not os.path.exists(priest): os.makedirs(priest)
+							print '\t\t\t', album_title
+							print '\t\t\t', album_url
 
-								# remaining results are albums
-								album_title = artist_link.text
-								album_url   = root_url + artist_link.get('href')
+							# set up album page
+							album_page = requests.get(album_url)
+							album_soup = BeautifulSoup(album_page.content)
 
-								# begin to conduct mass
-								mass = priest + '/' + album_title
+							# find the year the work was ready
+							album_year = album_soup.find_all('div', {'class': 'album-meta'})[0].find_all('dd')[-1].text
 
-								print '\t\t\t', album_title
-								print '\t\t\t', album_url
-								print
+							print '\t\t\t', album_year
+							print
 
-								# set up artist page
-								album_page = requests.get(album_url)
-								album_soup = BeautifulSoup(album_page.content)
+							# get all the album tracks
+							tracks = album_soup.find_all('tr') 
 
-								# get all the links
-								album_links = album_soup.find_all('a') 
+							# crawl the album page
+							for track in tracks[1:]: 
 
-								# crawl the album page
-								for album_link in album_links: 
+								track_data = track.find_all()
 
-									# filter out unwanted links
-									if re.match(r'^/lyric', album_link.get('href')):
+								for item in track_data:
 
-										# start to conduct mass
-										if not os.path.exists(mass): os.makedirs(mass)
-
-										# remaining results are songs
-										song_title = album_link.text
-										song_url   = root_url + album_link.get('href')
-
-										print '\t\t\t\t', song_title
-										print '\t\t\t\t', song_url
-										print
-
-										# set up song page
-										song_page = requests.get(song_url)
-										song_soup = BeautifulSoup(song_page.content)
-
-										# the holy text
-										lyrics = song_soup.find_all('pre')[0].text
-
-										prayer = mass + '/' + song_title
-
-										with open(prayer, 'w') as f: f.write(lyrics)
-
-										for line in lyrics.splitlines():
-
-											print '\t\t\t\t\t', line
-
-										print
+									print item
 
 								print
+
+#								# filter out unwanted links
+#								if re.match(r'^/lyric', album_link.get('href')):
+#
+#									# remaining results are songs
+#									song_title = re.sub('/', r'\\', album_link.text).encode('utf8')
+#									song_url   = root_url + album_link.get('href')
+#
+#									print '\t\t\t\t', song_title
+#									print '\t\t\t\t', song_url
+#									print
+#
+#									# set up song page
+#									song_page = requests.get(song_url)
+#									song_soup = BeautifulSoup(song_page.content)
+#									
+#									# the holy text
+#									try:
+#
+#										lyrics = song_soup.find_all('pre')[0].text.encode('utf8')
+#
+#									# some of it has not yet been written
+#									except IndexError: continue
+#
+#									# please kneel
+#									for line in lyrics.splitlines():
+#
+#										print '\t\t\t\t\t', line
+#
+#									print
+
+							print
 
 					print
