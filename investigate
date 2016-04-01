@@ -84,9 +84,9 @@ for link in main_soup.find_all('a'):
 					# skip links already accumulated
 					if artist_url in artist_urls: continue
 
-					# set artist name
-					artist_name = re.match(r'.*/(.*)/.*', artist_url).group(1)
-					print '\t\t', artist_name
+					# get canvas from url
+					priest = re.match(r'.*(artist/.*)/.*', artist_url).group(1)
+					print '\t\t', priest
 					print
 
 					# accumulate links
@@ -97,58 +97,75 @@ for link in main_soup.find_all('a'):
 					artist_soup = BeautifulSoup(artist_page.content)
 
 					# crawl the artist page
-					for item in artist_soup.find_all('strong'):
+					for item in artist_soup.find_all('h3'):
 
 						# get all the links
-						links = item.find_all('a')
+						artist_links = item.find_all('a')
 
 						# make sure there are more than zero
-						if links:
+						if artist_links:
 
-							# set the song title
-							song_title = item.find_all('a')[0].text.encode('ascii', 'ignore')
+							for artist_link in artist_links:
 
-							# set the song url
-							song_url = root_url + item.find_all('a')[0].get('href')
+								# filter out unwanted links
+								if 'artist'     in artist_link.get('href'): continue
+								if 'javascript' in artist_link.get('href'): continue
 
-							# set filename
-							filename = 'inspiration/' + artist_name + '/' + song_title
+								# create a canvas for our artist
+								if not os.path.exists(priest): os.makedirs(priest)
 
-							# check is we already recorded the song
-							if not os.path.isfile(filename):
+								# remaining results are albums
+								album_title = artist_link.text
+								album_url   = root_url + artist_link.get('href')
+
+								# begin to conduct mass
+								mass = priest + '/' + album_title
+
+								print '\t\t\t', album_title
+								print '\t\t\t', album_url
+								print
+
+								# set up artist page
+								album_page = requests.get(album_url)
+								album_soup = BeautifulSoup(album_page.content)
+
+								# get all the links
+								album_links = album_soup.find_all('a') 
+
+								# crawl the album page
+								for album_link in album_links: 
+
+									# filter out unwanted links
+									if re.match(r'^/lyric', album_link.get('href')):
+
+										# start to conduct mass
+										if not os.path.exists(mass): os.makedirs(mass)
+
+										# remaining results are songs
+										song_title = album_link.text
+										song_url   = root_url + album_link.get('href')
+
+										print '\t\t\t\t', song_title
+										print '\t\t\t\t', song_url
+										print
+
+										# set up song page
+										song_page = requests.get(song_url)
+										song_soup = BeautifulSoup(song_page.content)
+
+										# the holy text
+										lyrics = song_soup.find_all('pre')[0].text
+
+										prayer = mass + '/' + song_title
+
+										with open(prayer, 'w') as f: f.write(lyrics)
+
+										for line in lyrics.splitlines():
+
+											print '\t\t\t\t\t', line
+
+										print
 
 								print
-								print '\t\t\t', song_title
-								print
 
-								# set up page
-								song_page = requests.get(song_url)
-								song_soup = BeautifulSoup(song_page.content)
-
-								# get lyrics
-								if song_soup.find_all('pre'): 
-									
-									lyrics = song_soup.find_all('pre')[0].text.encode('ascii', 'ignore')
-
-									print
-
-									for line in lyrics.splitlines():
-
-										print '\t\t\t\t', line
-
-									print
-
-								try:
-
-									# check for blank canvas
-									if not os.path.exists(os.path.dirname(filename)): os.makedirs(os.path.dirname(filename))
-
-
-									# write the lyrics to the file
-									with open(filename, 'w') as f: f.write(lyrics)
-
-								# hacky, introduced because of Pink
-								except IOError: pass
-
-								# hacky introduced because of Beyonce
-								except OSError: pass
+					print
