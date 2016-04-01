@@ -138,42 +138,41 @@ for link in main_soup.find_all('a'):
 
 								track_data = track.find_all()
 
-								for item in track_data:
+								track_number = track_data[0].text
+								track_title  = track_data[1].text
+								track_length = track_data[-2].text
 
-									print item
+								track_suburl = track_data[-3].get('href')
+
+								print '\t\t\t\t', track_number
+								print '\t\t\t\t', track_title
+								print '\t\t\t\t', track_length
+
+								if track_suburl:
+
+									print '\t\t\t\t', track_suburl
+									print
+
+									# remaining results are songs
+									track_url   = root_url + track_suburl
+
+									# set up song page
+									track_page = requests.get(track_url)
+									track_soup = BeautifulSoup(track_page.content)
+									
+									# the holy text
+									try:
+
+										lyrics = track_soup.find_all('pre')[0].text.encode('utf8')
+
+									# some of it has not yet been written
+									except IndexError: continue
+
+									# please kneel
+									for line in lyrics.splitlines():
+
+										print '\t\t\t\t\t', line
+
+									print
 
 								print
-
-#								# filter out unwanted links
-#								if re.match(r'^/lyric', album_link.get('href')):
-#
-#									# remaining results are songs
-#									song_title = re.sub('/', r'\\', album_link.text).encode('utf8')
-#									song_url   = root_url + album_link.get('href')
-#
-#									print '\t\t\t\t', song_title
-#									print '\t\t\t\t', song_url
-#									print
-#
-#									# set up song page
-#									song_page = requests.get(song_url)
-#									song_soup = BeautifulSoup(song_page.content)
-#									
-#									# the holy text
-#									try:
-#
-#										lyrics = song_soup.find_all('pre')[0].text.encode('utf8')
-#
-#									# some of it has not yet been written
-#									except IndexError: continue
-#
-#									# please kneel
-#									for line in lyrics.splitlines():
-#
-#										print '\t\t\t\t\t', line
-#
-#									print
-
-							print
-
-					print
