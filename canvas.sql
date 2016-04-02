@@ -1,30 +1,33 @@
 create table artists (
 
-	artist_name varchar(255) not null,
+	name varchar(255) not null,
 
-	primary key (artist_name)
+	primary key (name)
 );
 
 create table albums (
 
 	artist_name varchar(255) not null,
 
-	album_title varchar(255) not null,
-	year  	    year(4)      not null,
+	title varchar(255) not null,
+	year  year(4)      not null,
 
-	primary key (album_title),
-	foreign key (artist_name) references artists (artist_name)
+	primary key (title),
+	foreign key (artist_name) references artists (name)
 );
 
 create table songs (
 
+	id int unsigned not null auto_increment,
+
 	album_title varchar(255) not null,
 
-	track 	    tinyint unsigned not null,
-	song_title  varchar(255)     not null,
+	track  tinyint unsigned not null,
+	title  varchar(255)     not null,
+	length time,
 	
 	lyrics text,
 
-	primary key (song_title),
-	foreign key (album_title) references albums (album_title)
+	primary key (id),
+	foreign key (album_title) references albums (title)
 );

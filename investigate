@@ -5,7 +5,6 @@
 #
 
 # need this to make canvas
-import os
 import MySQLdb
 
 canvas = MySQLdb.connect('localhost', 'root', '', 'telos')
@@ -16,6 +15,9 @@ from bs4 import BeautifulSoup
 import requests
 import urllib
 import re
+
+# not proud
+from timestamp import song_length_to_time
 
 # need this to communicate
 def communicate(url):
@@ -40,6 +42,8 @@ main_soup = communicate(root_url)
 # keep these to skip collected urls
 subalphabet_suburls = list()
 artist_urls 	    = list()
+
+missing_urls = ['http://www.lyrics.net//album/994412']
 
 # crawl the main page
 for link in main_soup.find_all('a'):
@@ -107,7 +111,12 @@ for link in main_soup.find_all('a'):
 					print
 
 					# remember the priest's name
-					brush.execute("insert into artists (artist_name) values (%s) on duplicate key update artist_name=artist_name", [priest])
+					brush.execute("insert into artists (name) \
+						       values (%s) \
+						       on duplicate key update \
+						       name=name", 
+						       [priest])
+
 					canvas.commit()
 					
 					# accumulate links
@@ -129,20 +138,36 @@ for link in main_soup.find_all('a'):
 							if 'javascript' in artist_link.get('href'): continue
 
 							# remaining results are albums
-							album_title = re.sub('/', r'\\', artist_link.text).encode('utf8')
+							mass 	    = artist_link.text
 							album_url   = root_url + artist_link.get('href')
 
-							print '\t\t\t', album_title
+							# skip missing albums
+							if album_url in missing_urls: continue
+
 							print '\t\t\t', album_url
+							print '\t\t\t', "Album title:", mass
 
 							# get album soup
 							album_soup = communicate(album_url)
 
 							# find the year the work was ready
-							album_year = album_soup.find_all('div', {'class': 'album-meta'})[0].find_all('dd')[-1].text
+							try: 		   album_year = album_soup.find_all('div', {'class': 'album-meta'})[0].find_all('dd')[-1].text
+							except IndexError: album_year = None
 
-							print '\t\t\t', album_year
+							# sometimes empty strings
+							if album_year == '': album_year = None
+
+							print '\t\t\t', "Album year:", album_year
 							print
+
+							# remember the work
+							brush.execute("insert into albums (artist_name, title, year) \
+								       values (%s, %s, %s) \
+								       on duplicate key update \
+								       artist_name=artist_name, title=title, year=year", 
+								       [priest, mass, album_year])
+
+							canvas.commit()
 
 							# get all the album tracks
 							tracks = album_soup.find_all('tr') 
@@ -154,14 +179,20 @@ for link in main_soup.find_all('a'):
 								track_data = track.find_all()
 
 								track_number = track_data[0].text
-								track_title  = track_data[1].text
+								prayer       = track_data[1].text
 								track_length = track_data[-2].text
+
+								# non-breaking spaces
+								if track_length == u'\xa0': track_length = None
+
+								# time format
+								else: track_length = song_length_to_time(track_length)
 
 								track_suburl = track_data[-3].get('href')
 
-								print '\t\t\t\t', track_number
-								print '\t\t\t\t', track_title
-								print '\t\t\t\t', track_length
+								print '\t\t\t\t', "Track number:", track_number
+								print '\t\t\t\t', "Track title:",  prayer
+								print '\t\t\t\t', "Track length:", track_length
 
 								# for that which is accounted for
 								if track_suburl:
@@ -170,24 +201,31 @@ for link in main_soup.find_all('a'):
 									print
 
 									# set track url
-									track_url   = root_url + track_suburl
+									track_url = root_url + track_suburl
 
 									# set up track page page
 									track_soup = communicate(track_url)
 									
 									# the holy text
-									try:
-
-										lyrics = track_soup.find_all('pre')[0].text.encode('utf8')
+									try: lyrics = track_soup.find_all('pre')[0].text
 
 									# some of it has not yet been written
-									except IndexError: continue
+									except IndexError: lyrics = None
 
-									# please kneel
-									for line in lyrics.splitlines():
+									if lyrics:
 
-										print '\t\t\t\t\t', line
+										# please kneel
+										for line in lyrics.splitlines(): print '\t\t\t\t\t', line
 
 									print
+
+									# remember the work
+									brush.execute("insert into songs (album_title, track, title, length, lyrics) \
+										       values (%s, %s, %s, %s, %s) \
+										       on duplicate key update \
+										       album_title=album_title, track=track, title=title, length=length, lyrics=lyrics", 
+										       [mass, track_number, prayer, track_length, lyrics])
+
+									canvas.commit()
 
 								print
