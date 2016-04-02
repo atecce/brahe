@@ -4,228 +4,165 @@
 # But, if possible, to stimulate someone to thoughts of their own.
 #
 
-# need this to make canvas
-import MySQLdb
+class lyrics_site:
 
-canvas = MySQLdb.connect('localhost', 'root', '', 'telos')
-brush  = canvas.cursor()
+	def communicate(self, url):
 
-# need these to get and parse html
-from bs4 import BeautifulSoup
-import requests
-import urllib
-import re
+		from bs4 import BeautifulSoup
+		import requests
 
-# not proud
-from timestamp import song_length_to_time
+		# never stop trying
+		while True:
 
-# need this to communicate
-def communicate(url):
+			try:
 
-	while True:
+				page = requests.get(url)
+				soup = BeautifulSoup(page.content)
 
-		try:
+				return soup
 
-			# get soup
-			page = requests.get(url)
-			soup = BeautifulSoup(page.content)
+			# give communication a chance
+			except requests.exceptions.ConnectionError: pass
 
-			return soup
+class lyrics_net(lyrics_site): 
 
-		# give communication a chance
-		except requests.exceptions.ConnectionError: pass
+	url = 'http://www.lyrics.net/'
 
-# set up main page
-root_url  = 'http://www.lyrics.net/'
-main_soup = communicate(root_url)
+	import MySQLdb
 
-# keep these to skip collected urls
-subalphabet_suburls = list()
-artist_urls 	    = list()
+	canvas = MySQLdb.connect('localhost', 'root')
+	brush  = canvas.cursor()
 
-missing_urls = ['http://www.lyrics.net//album/994412']
+	# set the canvas
+	try: 
 
-# crawl the main page
-for link in main_soup.find_all('a'):
+		brush.execute("create database lyrics_net")
+		canvas.close()
 
-	# filter out unwanted links
-	if '.php' in link.get('href'): continue 
-	if 'http' in link.get('href'): continue
+	except: pass
 
-	# the rest are alphabet suburls
-	alphabet_suburl = link.get('href')
+	canvas = MySQLdb.connect('localhost', 'root', db ='lyrics_net')
+	brush  = canvas.cursor()
 
-	# only get links relevant to artists
-	if 'artists' in alphabet_suburl:
+	brush.execute("""create table if not exists artists (
+								  
+				 name varchar(255) not null, 	  
+								  
+				 primary key (name) 		  
+								  
+				 )""")
 
-		# get alphabet soup
-		alphabet_url  = root_url + alphabet_suburl
-		alphabet_soup = communicate(alphabet_url)
+	brush.execute("""create table if not exists albums ( 		
+										
+				 artist_name varchar(255) not null,  		
+										
+				 title varchar(255) not null, 			
+										
+				 primary key (title), 				
+				 foreign key (artist_name) references artists (name) 
+										
+				 )""")
+
+	brush.execute("""create table if not exists songs ( 	    	       
+								    	       
+				 id int unsigned not null auto_increment, 	       
+									       
+				 album_title varchar(255) not null, 	    	       
+									       
+				 title varchar(255) not null, 	    	       
+									       
+				 lyrics text, 			    	       
+									       
+				 primary key (id), 			    	       
+				 foreign key (album_title) references albums (title) 
+									       
+				 )""")
+
+	def investigate(self):
+
+		import re
+
+		self.soup = self.communicate(self.url)
+
+		alphabet_urls = (self.url + re.match('^/artists/[A-Z0]$', link.get('href')).group(0) + '/99999' \
+				 for link in self.soup.find_all('div', {'id': 'page-letter-search'})[0] 	\
+				          if re.match('^/artists/[A-Z0]$', str(link.get('href'))))
+
+		artist_tags = (trace.find_all('strong')[0].find_all('a')[0] 		  \
+			       for alphabet_url in alphabet_urls 	    		  \
+			       for trace in self.communicate(alphabet_url).find_all('tr') \
+			       		 if trace.find_all('strong'))
+
+		artist_data = ((artist_tag.text, self.url + artist_tag.get('href')) for artist_tag in artist_tags)
+
+		for artist_name, artist_url in artist_data: self.honor(artist_name, artist_url)
+
+	def honor(self, artist_name, artist_url):
 
 		print
-		print alphabet_url
+		print artist_name
 		print
 
-		# crawl the alphabet page
-		for alphabet_link in alphabet_soup.find_all('a'):
+		self.brush.execute("""insert into artists (name)
+				      values (%s)
+				      on duplicate key update
+				      name = name""",
+				      [artist_name])
 
-			# filter out links without 'artists' in them
-			if 'artists' in alphabet_link.get('href'):
+		self.canvas.commit()
+
+		soup = self.communicate(artist_url)
+
+		for album_label in soup.find_all('h3', {'class': 'artist-album-label'}): 
 			
-				# the rest are subalphabet links
-				subalphabet_suburl = alphabet_link.get('href')
+			self.admire(artist_name, self.url + album_label.find_all('a')[0].get('href'), album_label.find_all('a')[0].text)
 
-				# skip links already accumulated
-				if subalphabet_suburl in subalphabet_suburls: continue
+	def admire(self, artist_name, album_url, album_title):
 
-				# accumulate links
-				subalphabet_suburls.append(subalphabet_suburl)
+		print '\t', album_url
+		print '\t', album_title
+		print
 
-				print '\t', subalphabet_suburl
-				print
+		self.brush.execute("""insert into albums (artist_name, title)
+				      values (%s, %s)
+				      on duplicate key update
+				      artist_name = artist_name, title = title""",
+				      [artist_name, album_title])
 
-				# get subalphabet soup
-				subalphabet_soup = communicate(root_url + subalphabet_suburl)
+		self.canvas.commit()
 
-				# crawl the subalphabet page
-				for subalphabet_link in subalphabet_soup.find_all('a'):
+		soup = self.communicate(album_url)
 
-					# filter out unwanted links
-					if re.match(r'^/.*', subalphabet_link.get('href')): continue
+		song_data = ((self.url + song_tag.find_all('a')[0].get('href'), song_tag.find_all('a')[0].text) \
+			     for song_tag in soup.find_all('strong') 						\
+			     		  if song_tag.find_all('a'))
 
-					if 'http' 	in subalphabet_link.get('href'): continue 
-					if '.php' 	in subalphabet_link.get('href'): continue
-					if 'javascript' in subalphabet_link.get('href'): continue
+		for song_url, song_title in song_data: self.experience(album_title, song_url, song_title)
 
-					if root_url + subalphabet_link.get('href') == root_url: continue
+	def experience(self, album_title, song_url, song_title):
 
-					# remaining results are artist urls
-					artist_url = root_url + subalphabet_link.get('href')
+		print '\t\t', song_url
+		print '\t\t', song_title
+		print
 
-					# skip links already accumulated
-					if artist_url in artist_urls: continue
+		soup = self.communicate(song_url)
 
-					# get priest from url
-					priest = urllib.unquote_plus(re.match(r'.*/(.*)/.*', artist_url).group(1))
-					print '\t\t', priest
-					print
+		lyrics = soup.find_all('pre', {'id': 'lyric-body-text'})[0].text
 
-					# remember the priest's name
-					brush.execute("insert into artists (name) \
-						       values (%s) \
-						       on duplicate key update \
-						       name=name", 
-						       [priest])
+		for line in lyrics.splitlines():
 
-					canvas.commit()
-					
-					# accumulate links
-					artist_urls.append(artist_url)
+			print '\t\t\t', line
 
-					# get artist_soup
-					artist_soup = communicate(artist_url)
+		print
 
-					# crawl the artist page
-					for header in artist_soup.find_all('h3'):
+		self.brush.execute("""insert into songs (album_title, title, lyrics)
+				      values (%s, %s, %s)
+				      on duplicate key update
+				      album_title = album_title, title = title, lyrics = lyrics""",
+				      [album_title, song_title, lyrics])
 
-						# get all the links
-						artist_links = header.find_all('a')
+		self.canvas.commit()
 
-						for artist_link in artist_links:
+investigation = lyrics_net()
 
-							# filter out unwanted links
-							if 'artist'     in artist_link.get('href'): continue
-							if 'javascript' in artist_link.get('href'): continue
-
-							# remaining results are albums
-							mass 	    = artist_link.text
-							album_url   = root_url + artist_link.get('href')
-
-							# skip missing albums
-							if album_url in missing_urls: continue
-
-							print '\t\t\t', album_url
-							print '\t\t\t', "Album title:", mass
-
-							# get album soup
-							album_soup = communicate(album_url)
-
-							# find the year the work was ready
-							try: 		   album_year = album_soup.find_all('div', {'class': 'album-meta'})[0].find_all('dd')[-1].text
-							except IndexError: album_year = None
-
-							# sometimes empty strings
-							if album_year == '': album_year = None
-
-							print '\t\t\t', "Album year:", album_year
-							print
-
-							# remember the work
-							brush.execute("insert into albums (artist_name, title, year) \
-								       values (%s, %s, %s) \
-								       on duplicate key update \
-								       artist_name=artist_name, title=title, year=year", 
-								       [priest, mass, album_year])
-
-							canvas.commit()
-
-							# get all the album tracks
-							tracks = album_soup.find_all('tr') 
-
-							# crawl the album page
-							for track in tracks[1:]: 
-
-								# extract the work
-								track_data = track.find_all()
-
-								track_number = track_data[0].text
-								prayer       = track_data[1].text
-								track_length = track_data[-2].text
-
-								# non-breaking spaces
-								if track_length == u'\xa0': track_length = None
-
-								# time format
-								else: track_length = song_length_to_time(track_length)
-
-								track_suburl = track_data[-3].get('href')
-
-								print '\t\t\t\t', "Track number:", track_number
-								print '\t\t\t\t', "Track title:",  prayer
-								print '\t\t\t\t', "Track length:", track_length
-
-								# for that which is accounted for
-								if track_suburl:
-
-									print '\t\t\t\t', track_suburl
-									print
-
-									# set track url
-									track_url = root_url + track_suburl
-
-									# set up track page page
-									track_soup = communicate(track_url)
-									
-									# the holy text
-									try: lyrics = track_soup.find_all('pre')[0].text
-
-									# some of it has not yet been written
-									except IndexError: lyrics = None
-
-									if lyrics:
-
-										# please kneel
-										for line in lyrics.splitlines(): print '\t\t\t\t\t', line
-
-									print
-
-									# remember the work
-									brush.execute("insert into songs (album_title, track, title, length, lyrics) \
-										       values (%s, %s, %s, %s, %s) \
-										       on duplicate key update \
-										       album_title=album_title, track=track, title=title, length=length, lyrics=lyrics", 
-										       [mass, track_number, prayer, track_length, lyrics])
-
-									canvas.commit()
-
-								print
+investigation.investigate()
