@@ -95,7 +95,20 @@ class lyrics_net(lyrics_site):
 
 		artist_data = ((artist_tag.text, self.url + artist_tag.get('href')) for artist_tag in artist_tags)
 
-		for artist_name, artist_url in artist_data: self.honor(artist_name, artist_url)
+		for artist_name, artist_url in artist_data: 
+
+			# pick up where you left off
+			self.brush.execute("""select * from artists order by name desc limit 1""")
+
+			last_entry = self.brush.fetchone()[0]
+			
+			if artist_name != last_entry:
+
+				print last_entry				
+				print artist_name
+				continue
+			
+			self.honor(artist_name, artist_url)
 
 	def honor(self, artist_name, artist_url):
 
@@ -147,7 +160,9 @@ class lyrics_net(lyrics_site):
 
 		soup = self.communicate(song_url)
 
-		lyrics = soup.find_all('pre', {'id': 'lyric-body-text'})[0].text
+		try: lyrics = soup.find_all('pre', {'id': 'lyric-body-text'})[0].text
+
+		except IndexError: return
 
 		for line in lyrics.splitlines():
 
