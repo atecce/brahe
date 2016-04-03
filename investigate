@@ -6,6 +6,8 @@
 
 class lyrics_site:
 
+	caught_up = bool()
+
 	def communicate(self, url):
 
 		from bs4 import BeautifulSoup
@@ -14,6 +16,7 @@ class lyrics_site:
 		# never stop trying
 		while True:
 
+			# make some soup
 			try:
 
 				page = requests.get(url)
@@ -26,21 +29,23 @@ class lyrics_site:
 
 class lyrics_net(lyrics_site): 
 
+	# get some inspiration
 	url = 'http://www.lyrics.net/'
 
+	# set the canvas
 	import MySQLdb
 
 	canvas = MySQLdb.connect('localhost', 'root')
 	brush  = canvas.cursor()
 
-	# set the canvas
 	try: 
 
 		brush.execute("create database lyrics_net")
 		canvas.close()
 
-	except: pass
+	except: canvas.close()
 
+	# sketch the outline
 	canvas = MySQLdb.connect('localhost', 'root', db ='lyrics_net')
 	brush  = canvas.cursor()
 
@@ -80,12 +85,15 @@ class lyrics_net(lyrics_site):
 
 	def investigate(self):
 
+		# need this to understand the text
 		import re
 
-		self.soup = self.communicate(self.url)
+		# talk to the text
+		soup = self.communicate(self.url)
 
+		# get the priests
 		alphabet_urls = (self.url + re.match('^/artists/[A-Z0]$', link.get('href')).group(0) + '/99999' \
-				 for link in self.soup.find_all('div', {'id': 'page-letter-search'})[0] 	\
+				 for link in soup.find_all('div', {'id': 'page-letter-search'})[0] 		\
 				          if re.match('^/artists/[A-Z0]$', str(link.get('href'))))
 
 		artist_tags = (trace.find_all('strong')[0].find_all('a')[0] 		  \
@@ -93,25 +101,30 @@ class lyrics_net(lyrics_site):
 			       for trace in self.communicate(alphabet_url).find_all('tr') \
 			       		 if trace.find_all('strong'))
 
+		# don't repeat yourself
+		self.brush.execute("select name from artists order by name desc limit 1")
+
+		last_artist_name = self.brush.fetchone()[0]
+
 		artist_data = ((artist_tag.text, self.url + artist_tag.get('href')) for artist_tag in artist_tags)
 
+		# talk to all the priests
 		for artist_name, artist_url in artist_data: 
-
-			# pick up where you left off
-			self.brush.execute("""select * from artists order by name desc limit 1""")
-
-			last_entry = self.brush.fetchone()[0]
 			
-			if artist_name != last_entry:
-
-				print last_entry				
+			# check if you're caught up
+			if artist_name != last_artist_name and not self.caught_up: 
+				
 				print artist_name
 				continue
-			
+
+			self.caught_up = True
+	
+			# honor the priest
 			self.honor(artist_name, artist_url)
 
 	def honor(self, artist_name, artist_url):
 
+		# don't forget the priest
 		print
 		print artist_name
 		print
@@ -124,14 +137,17 @@ class lyrics_net(lyrics_site):
 
 		self.canvas.commit()
 
+		# attend the masses
 		soup = self.communicate(artist_url)
 
+		# conduct their masses
 		for album_label in soup.find_all('h3', {'class': 'artist-album-label'}): 
 			
 			self.admire(artist_name, self.url + album_label.find_all('a')[0].get('href'), album_label.find_all('a')[0].text)
 
 	def admire(self, artist_name, album_url, album_title):
 
+		# don't forget the mass
 		print '\t', album_url
 		print '\t', album_title
 		print
@@ -146,6 +162,7 @@ class lyrics_net(lyrics_site):
 
 		soup = self.communicate(album_url)
 
+		# find their prayers
 		song_data = ((self.url + song_tag.find_all('a')[0].get('href'), song_tag.find_all('a')[0].text) \
 			     for song_tag in soup.find_all('strong') 						\
 			     		  if song_tag.find_all('a'))
@@ -154,6 +171,7 @@ class lyrics_net(lyrics_site):
 
 	def experience(self, album_title, song_url, song_title):
 
+		# please kneel
 		print '\t\t', song_url
 		print '\t\t', song_title
 		print
