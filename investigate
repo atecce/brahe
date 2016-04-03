@@ -104,7 +104,13 @@ class lyrics_net(lyrics_site):
 		# don't repeat yourself
 		self.brush.execute("select name from artists order by name desc limit 1")
 
-		last_artist_name = self.brush.fetchone()[0]
+		try: last_artist_name = self.brush.fetchone()[0]
+
+		except TypeError:
+
+			# already all caught up
+			self.caught_up = True
+			pass
 
 		artist_data = ((artist_tag.text, self.url + artist_tag.get('href')) for artist_tag in artist_tags)
 
