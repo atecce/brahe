@@ -40,13 +40,13 @@ class lyrics_net(lyrics_site):
 
 	try: 
 
-		brush.execute("create database test")
+		brush.execute("create database multiprocessing")
 		canvas.close()
 
 	except: canvas.close()
 
 	# sketch the outline
-	canvas = MySQLdb.connect('localhost', 'root', db ='test')
+	canvas = MySQLdb.connect('localhost', 'root', db ='multiprocessing')
 	brush  = canvas.cursor()
 
 	brush.execute("""create table if not exists artists (
@@ -162,10 +162,6 @@ class lyrics_net(lyrics_site):
 	def admire(self, artist_name, album_url, album_title):
 
 		# don't forget the mass
-		print '\t', album_url
-		print '\t', album_title
-		print
-
 		self.brush.execute("""insert into albums (artist_name, title)
 				      values (%s, %s)
 				      on duplicate key update
@@ -186,21 +182,11 @@ class lyrics_net(lyrics_site):
 	def experience(self, album_title, song_url, song_title):
 
 		# please kneel
-		print '\t\t', song_url
-		print '\t\t', song_title
-		print
-
 		soup = self.communicate(song_url)
 
 		try: lyrics = soup.find_all('pre', {'id': 'lyric-body-text'})[0].text
 
 		except IndexError: return
-
-		for line in lyrics.splitlines():
-
-			print '\t\t\t', line
-
-		print
 
 		self.brush.execute("""insert into songs (album_title, title, lyrics)
 				      values (%s, %s, %s)
