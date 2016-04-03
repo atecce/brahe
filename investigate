@@ -57,10 +57,18 @@ class database:
 									       
 				 )""")
 
-	def draw(self, query):
+	canvas.close()
 
-		self.brush.execute(query)
-		self.canvas.commit()
+	def draw(self, query, args):
+
+		# sketch the outline
+		canvas = self.MySQLdb.connect('localhost', 'root', db ='multiprocessing')
+		brush  = canvas.cursor()
+
+		brush.execute(query, args)
+		canvas.commit()
+
+		canvas.close()
 
 class lyrics_site:
 
@@ -119,23 +127,12 @@ class lyrics_net(lyrics_site):
 
 			priests = set()
 
-			while True:
+			# honor the priest
+			priest = multiprocessing.Process(target=self.honor, args=(artist_name, artist_url,))
 
-				try:
-	
-					# honor the priest
-					priest = multiprocessing.Process(target=self.honor, args=(artist_name, artist_url,))
+			priests.add(priest)
 
-					priests.add(priest)
-
-					priest.start()
-
-					break
-
-				except MySQLdb.OperationalError:
-
-					self.canvas = MySQLdb.connect('localhost', 'root', db ='multiprocessing')
-					self.brush  = canvas.cursor()
+			priest.start()
 
 	def honor(self, artist_name, artist_url):
 
