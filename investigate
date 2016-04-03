@@ -40,13 +40,13 @@ class lyrics_net(lyrics_site):
 
 	try: 
 
-		brush.execute("create database lyrics_net")
+		brush.execute("create database test")
 		canvas.close()
 
 	except: canvas.close()
 
 	# sketch the outline
-	canvas = MySQLdb.connect('localhost', 'root', db ='lyrics_net')
+	canvas = MySQLdb.connect('localhost', 'root', db ='test')
 	brush  = canvas.cursor()
 
 	brush.execute("""create table if not exists artists (
@@ -104,7 +104,14 @@ class lyrics_net(lyrics_site):
 		# don't repeat yourself
 		self.brush.execute("select name from artists order by name desc limit 1")
 
-		last_artist_name = self.brush.fetchone()[0]
+		last_artist_name = str()
+
+		try: last_artist_name = self.brush.fetchone()[0]
+
+		except TypeError: 
+			
+			self.caught_up = True
+			pass
 
 		artist_data = ((artist_tag.text, self.url + artist_tag.get('href')) for artist_tag in artist_tags)
 
@@ -118,9 +125,16 @@ class lyrics_net(lyrics_site):
 				continue
 
 			self.caught_up = True
+
+			# don't wait for your neighbors
+			import multiprocessing
+
+			priests = list()
 	
 			# honor the priest
-			self.honor(artist_name, artist_url)
+			priest = self.honor(artist_name, artist_url)
+
+			priests.append(priest)
 
 	def honor(self, artist_name, artist_url):
 
