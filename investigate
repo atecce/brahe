@@ -4,33 +4,7 @@
 # But, if possible, to stimulate someone to thoughts of their own.
 #
 
-class lyrics_site:
-
-	caught_up = bool()
-
-	def communicate(self, url):
-
-		from bs4 import BeautifulSoup
-		import requests
-
-		# never stop trying
-		while True:
-
-			# make some soup
-			try:
-
-				page = requests.get(url)
-				soup = BeautifulSoup(page.content)
-
-				return soup
-
-			# give communication a chance
-			except requests.exceptions.ConnectionError: pass
-
-class lyrics_net(lyrics_site): 
-
-	# get some inspiration
-	url = 'http://www.lyrics.net/'
+class database:
 
 	# set the canvas
 	import MySQLdb
@@ -69,7 +43,7 @@ class lyrics_net(lyrics_site):
 				 )""")
 
 	brush.execute("""create table if not exists songs ( 	    	       
-								    	       
+									       
 				 id int unsigned not null auto_increment, 	       
 									       
 				 album_title varchar(255) not null, 	    	       
@@ -82,6 +56,40 @@ class lyrics_net(lyrics_site):
 				 foreign key (album_title) references albums (title) 
 									       
 				 )""")
+
+	def draw(self, query):
+
+		self.brush.execute(query)
+		self.canvas.commit()
+
+class lyrics_site:
+
+	def communicate(self, url):
+
+		from bs4 import BeautifulSoup
+		import requests
+
+		# never stop trying
+		while True:
+
+			# make some soup
+			try:
+
+				page = requests.get(url)
+				soup = BeautifulSoup(page.content)
+
+				return soup
+
+			# give communication a chance
+			except requests.exceptions.ConnectionError: pass
+
+class lyrics_net(lyrics_site): 
+
+	# get some inspiration
+	url = 'http://www.lyrics.net/'
+
+	# set the canvas
+	canvas = database()
 
 	def investigate(self):
 
@@ -101,40 +109,33 @@ class lyrics_net(lyrics_site):
 			       for trace in self.communicate(alphabet_url).find_all('tr') \
 			       		 if trace.find_all('strong'))
 
-		# don't repeat yourself
-		self.brush.execute("select name from artists order by name desc limit 1")
-
-		last_artist_name = str()
-
-		try: last_artist_name = self.brush.fetchone()[0]
-
-		except TypeError: 
-			
-			self.caught_up = True
-			pass
-
 		artist_data = ((artist_tag.text, self.url + artist_tag.get('href')) for artist_tag in artist_tags)
 
 		# talk to all the priests
 		for artist_name, artist_url in artist_data: 
 			
-			# check if you're caught up
-			if artist_name != last_artist_name and not self.caught_up: 
-				
-				print artist_name
-				continue
-
-			self.caught_up = True
-
 			# don't wait for your neighbors
 			import multiprocessing
 
-			priests = list()
-	
-			# honor the priest
-			priest = self.honor(artist_name, artist_url)
+			priests = set()
 
-			priests.append(priest)
+			while True:
+
+				try:
+	
+					# honor the priest
+					priest = multiprocessing.Process(target=self.honor, args=(artist_name, artist_url,))
+
+					priests.add(priest)
+
+					priest.start()
+
+					break
+
+				except MySQLdb.OperationalError:
+
+					self.canvas = MySQLdb.connect('localhost', 'root', db ='multiprocessing')
+					self.brush  = canvas.cursor()
 
 	def honor(self, artist_name, artist_url):
 
@@ -143,13 +144,11 @@ class lyrics_net(lyrics_site):
 		print artist_name
 		print
 
-		self.brush.execute("""insert into artists (name)
-				      values (%s)
-				      on duplicate key update
-				      name = name""",
-				      [artist_name])
-
-		self.canvas.commit()
+		self.canvas.draw("""insert into artists (name)
+					    values (%s)
+					    on duplicate key update
+					    name = name""",
+					    [artist_name])
 
 		# attend the masses
 		soup = self.communicate(artist_url)
@@ -162,13 +161,11 @@ class lyrics_net(lyrics_site):
 	def admire(self, artist_name, album_url, album_title):
 
 		# don't forget the mass
-		self.brush.execute("""insert into albums (artist_name, title)
-				      values (%s, %s)
-				      on duplicate key update
-				      artist_name = artist_name, title = title""",
-				      [artist_name, album_title])
-
-		self.canvas.commit()
+		self.canvas.draw("""insert into albums (artist_name, title)
+					    values (%s, %s)
+					    on duplicate key update
+					    artist_name = artist_name, title = title""",
+					    [artist_name, album_title])
 
 		soup = self.communicate(album_url)
 
@@ -188,13 +185,11 @@ class lyrics_net(lyrics_site):
 
 		except IndexError: return
 
-		self.brush.execute("""insert into songs (album_title, title, lyrics)
-				      values (%s, %s, %s)
-				      on duplicate key update
-				      album_title = album_title, title = title, lyrics = lyrics""",
-				      [album_title, song_title, lyrics])
-
-		self.canvas.commit()
+		self.canvas.draw("""insert into songs (album_title, title, lyrics)
+					    values (%s, %s, %s)
+					    on duplicate key update
+					    album_title = album_title, title = title, lyrics = lyrics""",
+					    [album_title, song_title, lyrics])
 
 investigation = lyrics_net()
 
