@@ -83,10 +83,13 @@ class database:
 
 class lyrics_site:
 
-	# wait
+	# be patient
 	import time
 
-	# focus
+	# but don't wait for your neighbors
+	import multiprocessing
+
+	# and focus
 	branching_factor = 8
 
 	# set the canvas
@@ -113,24 +116,23 @@ class lyrics_site:
 
 			self.time.sleep(1)
 
-	def multitask(self, process, processes):
+	def multitask(self, processes, process_name, process_target, process_args):
+
+			process = self.multiprocessing.Process(name=process_name, target=process_target, args=process_args)
+
+			processes.add(process)
 
 			process.start()
 
 			alive =  [(process.name, process.is_alive()) for process in processes if process.is_alive()]
-			dead  =  [(process.name, process.is_alive()) for process in processes if not process.is_alive()]
 			
 			while len(alive) >= self.branching_factor:
 
 				alive =  [(process.name, process.is_alive()) for process in processes if process.is_alive()]
-				dead  =  [(process.name, process.is_alive()) for process in processes if not process.is_alive()]
 
 				self.time.sleep(1)
 
 class lyrics_net(lyrics_site): 
-
-	# don't wait for your neighbors
-	import multiprocessing
 
 	# get some inspiration
 	url = 'http://www.lyrics.net/'
@@ -156,14 +158,7 @@ class lyrics_net(lyrics_site):
 		artist_data = ((artist_tag.text, self.url + artist_tag.get('href')) for artist_tag in artist_tags)
 
 		# talk to all the priests
-		for artist_name, artist_url in artist_data: 
-
-			# honor the priest
-			priest = self.multiprocessing.Process(name=artist_name, target=self.honor, args=(artist_name, artist_url,))
-
-			priests.add(priest)
-
-			self.multitask(priest, priests)
+		for artist_name, artist_url in artist_data: self.multitask(priests, artist_name, self.honor, (artist_name, artist_url,))
 
 	def honor(self, artist_name, artist_url):
 
@@ -174,6 +169,8 @@ class lyrics_net(lyrics_site):
 					   name = name""",
 					   [artist_name])
 
+		print "\nArtist:", artist_name, "\ninserted"
+
 		# attend the masses
 		soup = self.communicate(artist_url)
 
@@ -183,11 +180,7 @@ class lyrics_net(lyrics_site):
 			album_url   = self.url + album_label.find_all('a')[0].get('href')
 			album_title = album_label.find_all('a')[0].text
 
-			mass = self.multiprocessing.Process(name=album_title, target=self.admire, args=(artist_name, album_url, album_title,))
-
-			masses.add(mass)
-
-			self.multitask(mass, masses)
+			self.multitask(masses, album_title, self.admire, (artist_name, album_url, album_title,))
 
 	def admire(self, artist_name, album_url, album_title):
 
@@ -198,12 +191,13 @@ class lyrics_net(lyrics_site):
 					   artist_name = artist_name, title = title""",
 					   [artist_name, album_title])
 
+		print "\n\tArtist:", artist_name, "\n\tAlbum:", album_title, "\n\tinserted"
+
 		soup = self.communicate(album_url)
 
 		if soup.find_all('body', {'id': 's4-page-homepage'}): 
 			
-			print "Artist:", artist_name, "\nAlbum:", album_title, "\nredirects to home page"
-			print
+			print "\tArtist:", artist_name, "\n\tAlbum:", album_title, "\n\tredirects to home page\n"
 			return
 
 		# find their prayers
@@ -215,13 +209,12 @@ class lyrics_net(lyrics_site):
 		for song_url, song_title in song_data:
 
 			# don't repeat yourself
-			if self.canvas.caught_up(song_title, album_title): continue
-	
-			prayer = self.multiprocessing.Process(name=song_title, target=self.experience, args=(album_title, song_url, song_title,))
-
-			prayers.add(prayer)
+			if self.canvas.caught_up(song_title, album_title): 
+				
+				print "\n\t\tSong:", song_title, "\n\t\tAlbum:", album_title, "\n\t\talready completed\n"
+				continue
 			
-			self.multitask(prayer, prayers)
+			self.multitask(prayers, song_title, self.experience, (album_title, song_url, song_title,))
 
 	def experience(self, album_title, song_url, song_title):
 
@@ -231,8 +224,7 @@ class lyrics_net(lyrics_site):
 		# don't go home too early
 		if soup.find_all('body', {'id': 's4-page-homepage'}): 
 			
-			print "Song:", song_title, "\nAlbum:", album_title, "\nredirects to home page"
-			print
+			print "\n\t\tSong:", song_title, "\n\t\tAlbum:", album_title, "\n\t\tredirects to home page\n"
 			return
 
 		try: lyrics = soup.find_all('pre', {'id': 'lyric-body-text'})[0].text
@@ -244,6 +236,8 @@ class lyrics_net(lyrics_site):
 					   on duplicate key update
 					   album_title = album_title, title = title, lyrics = lyrics""",
 					   [album_title, song_title, lyrics])
+
+		print "\t\tSong:", song_title, "\n\t\tAlbum:", album_title, "\n\t\tinserted\n"
 
 if __name__ == '__main__':
 
