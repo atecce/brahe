@@ -68,11 +68,29 @@ class database:
 
 		canvas.close()
 
+	def caught_up(self, song, album):
+
+		# compare yourself to others
+		canvas = self.MySQLdb.connect('localhost', 'root', db='multiprocessing')
+		brush  = canvas.cursor()
+
+		if brush.execute("select title, album_title from songs where title=%s and album_title=%s", (song, album)):
+			
+			canvas.close()
+			return True
+
+		canvas.close()
+
 class lyrics_site:
 
+	# wait
 	import time
 
-	branching_factor = 2
+	# focus
+	branching_factor = 8
+
+	# set the canvas
+	canvas = database()
 
 	def communicate(self, url):
 
@@ -101,17 +119,11 @@ class lyrics_site:
 
 			alive =  [(process.name, process.is_alive()) for process in processes if process.is_alive()]
 			dead  =  [(process.name, process.is_alive()) for process in processes if not process.is_alive()]
-
-			print alive, len(alive)
-			print dead, len(dead)
 			
 			while len(alive) >= self.branching_factor:
 
 				alive =  [(process.name, process.is_alive()) for process in processes if process.is_alive()]
 				dead  =  [(process.name, process.is_alive()) for process in processes if not process.is_alive()]
-				
-				print alive, len(alive)
-				print dead, len(dead)
 
 				self.time.sleep(1)
 
@@ -122,9 +134,6 @@ class lyrics_net(lyrics_site):
 
 	# get some inspiration
 	url = 'http://www.lyrics.net/'
-
-	# set the canvas
-	canvas = database()
 
 	def investigate(self):
 
@@ -191,13 +200,23 @@ class lyrics_net(lyrics_site):
 
 		soup = self.communicate(album_url)
 
+		if soup.find_all('body', {'id': 's4-page-homepage'}): 
+			
+			print "Artist:", artist_name, "\nAlbum:", album_title, "\nredirects to home page"
+			print
+			return
+
 		# find their prayers
 		song_data = ((self.url + song_tag.find_all('a')[0].get('href'), song_tag.find_all('a')[0].text) \
 			     for song_tag in soup.find_all('strong') 						\
 			     		  if song_tag.find_all('a'))
 
+		# say your prayers 		
 		for song_url, song_title in song_data:
 
+			# don't repeat yourself
+			if self.canvas.caught_up(song_title, album_title): continue
+	
 			prayer = self.multiprocessing.Process(name=song_title, target=self.experience, args=(album_title, song_url, song_title,))
 
 			prayers.add(prayer)
@@ -208,6 +227,13 @@ class lyrics_net(lyrics_site):
 
 		# please kneel
 		soup = self.communicate(song_url)
+
+		# don't go home too early
+		if soup.find_all('body', {'id': 's4-page-homepage'}): 
+			
+			print "Song:", song_title, "\nAlbum:", album_title, "\nredirects to home page"
+			print
+			return
 
 		try: lyrics = soup.find_all('pre', {'id': 'lyric-body-text'})[0].text
 
