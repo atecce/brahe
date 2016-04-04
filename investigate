@@ -4,9 +4,71 @@
 # But, if possible, to stimulate someone to thoughts of their own.
 #
 
-class lyrics_site:
+class database:
 
-	caught_up = bool()
+	# set the canvas
+	import MySQLdb
+
+	canvas = MySQLdb.connect('localhost', 'root')
+	brush  = canvas.cursor()
+
+	try: 
+
+		brush.execute("create database multiprocessing")
+		canvas.close()
+
+	except: canvas.close()
+
+	# sketch the outline
+	canvas = MySQLdb.connect('localhost', 'root', db ='multiprocessing')
+	brush  = canvas.cursor()
+
+	brush.execute("""create table if not exists artists (
+								  
+				name varchar(255) not null, 	  
+				       			  
+				primary key (name) 		  
+				       			  
+				)""")
+
+	brush.execute("""create table if not exists albums ( 		
+				       					
+				title varchar(255) not null, 			
+										
+				artist_name varchar(255) not null,  		
+				       					
+				primary key (title, artist_name), 				
+				foreign key (artist_name) references artists (name) 
+				       					
+				)""")
+
+	brush.execute("""create table if not exists songs ( 	    	       
+				       				       
+				title varchar(255) not null, 	    	       
+									       
+				album_title varchar(255) not null, 	    	       
+				       				       
+				lyrics text, 			    	       
+				       				       
+				primary key (album_title, title),
+				foreign key (album_title) references albums (title) 
+				       				       
+				)""")
+
+	canvas.close()
+
+	def draw(self, query, args):
+
+		# sketch the outline
+		canvas = self.MySQLdb.connect('localhost', 'root', db='multiprocessing')
+		brush  = canvas.cursor()
+
+		brush.execute(query, args)
+		canvas.commit()
+
+		canvas.close()
+
+class lyrics_site:
 
 	def communicate(self, url):
 
@@ -33,55 +95,7 @@ class lyrics_net(lyrics_site):
 	url = 'http://www.lyrics.net/'
 
 	# set the canvas
-	import MySQLdb
-
-	canvas = MySQLdb.connect('localhost', 'root')
-	brush  = canvas.cursor()
-
-	try: 
-
-		brush.execute("create database lyrics_net")
-		canvas.close()
-
-	except: canvas.close()
-
-	# sketch the outline
-	canvas = MySQLdb.connect('localhost', 'root', db ='lyrics_net')
-	brush  = canvas.cursor()
-
-	brush.execute("""create table if not exists artists (
-								  
-				 name varchar(255) not null, 	  
-								  
-				 primary key (name) 		  
-								  
-				 )""")
-
-	brush.execute("""create table if not exists albums ( 		
-										
-				 artist_name varchar(255) not null,  		
-										
-				 title varchar(255) not null, 			
-										
-				 primary key (title), 				
-				 foreign key (artist_name) references artists (name) 
-										
-				 )""")
-
-	brush.execute("""create table if not exists songs ( 	    	       
-								    	       
-				 id int unsigned not null auto_increment, 	       
-									       
-				 album_title varchar(255) not null, 	    	       
-									       
-				 title varchar(255) not null, 	    	       
-									       
-				 lyrics text, 			    	       
-									       
-				 primary key (id), 			    	       
-				 foreign key (album_title) references albums (title) 
-									       
-				 )""")
+	canvas = database()
 
 	def investigate(self):
 
@@ -101,47 +115,44 @@ class lyrics_net(lyrics_site):
 			       for trace in self.communicate(alphabet_url).find_all('tr') \
 			       		 if trace.find_all('strong'))
 
-		# don't repeat yourself
-		self.brush.execute("select name from artists order by name desc limit 1")
-
-		try: last_artist_name = self.brush.fetchone()[0]
-
-		except TypeError:
-
-			# already all caught up
-			self.caught_up = True
-			pass
-
 		artist_data = ((artist_tag.text, self.url + artist_tag.get('href')) for artist_tag in artist_tags)
 
 		# talk to all the priests
 		for artist_name, artist_url in artist_data: 
 			
-			# check if you're caught up
-			if artist_name != last_artist_name and not self.caught_up: 
-				
-				print artist_name
-				continue
+			# don't wait for your neighbors
+			import multiprocessing
 
-			self.caught_up = True
-	
-			# honor the priest
-			self.honor(artist_name, artist_url)
+			try:
+
+				# honor the priest
+				priest = multiprocessing.Process(target=self.honor, args=(artist_name, artist_url,))
+
+				priests.add(priest)
+
+				priest.start()
+
+				while len(priests) >= 500:
+
+					len(priests)
+					time.sleep(1)
+
+			except OSError, e:
+
+				print e
+
+				print priests
+
+				break
 
 	def honor(self, artist_name, artist_url):
 
 		# don't forget the priest
-		print
-		print artist_name
-		print
-
-		self.brush.execute("""insert into artists (name)
-				      values (%s)
-				      on duplicate key update
-				      name = name""",
-				      [artist_name])
-
-		self.canvas.commit()
+		self.canvas.draw("""insert into artists (name)
+					   values (%s)
+					   on duplicate key update
+					   name = name""",
+					   [artist_name])
 
 		# attend the masses
 		soup = self.communicate(artist_url)
@@ -154,17 +165,11 @@ class lyrics_net(lyrics_site):
 	def admire(self, artist_name, album_url, album_title):
 
 		# don't forget the mass
-		print '\t', album_url
-		print '\t', album_title
-		print
-
-		self.brush.execute("""insert into albums (artist_name, title)
-				      values (%s, %s)
-				      on duplicate key update
-				      artist_name = artist_name, title = title""",
-				      [artist_name, album_title])
-
-		self.canvas.commit()
+		self.canvas.draw("""insert into albums (artist_name, title)
+					   values (%s, %s)
+					   on duplicate key update
+					   artist_name = artist_name, title = title""",
+					   [artist_name, album_title])
 
 		soup = self.communicate(album_url)
 
@@ -178,30 +183,22 @@ class lyrics_net(lyrics_site):
 	def experience(self, album_title, song_url, song_title):
 
 		# please kneel
-		print '\t\t', song_url
-		print '\t\t', song_title
-		print
-
 		soup = self.communicate(song_url)
 
 		try: lyrics = soup.find_all('pre', {'id': 'lyric-body-text'})[0].text
 
 		except IndexError: return
 
-		for line in lyrics.splitlines():
+		self.canvas.draw("""insert into songs (album_title, title, lyrics)
+					   values (%s, %s, %s)
+					   on duplicate key update
+					   album_title = album_title, title = title, lyrics = lyrics""",
+					   [album_title, song_title, lyrics])
 
-			print '\t\t\t', line
+if __name__ == '__main__':
 
-		print
+	priests = set()
 
-		self.brush.execute("""insert into songs (album_title, title, lyrics)
-				      values (%s, %s, %s)
-				      on duplicate key update
-				      album_title = album_title, title = title, lyrics = lyrics""",
-				      [album_title, song_title, lyrics])
+	investigation = lyrics_net()
 
-		self.canvas.commit()
-
-investigation = lyrics_net()
-
-investigation.investigate()
+	investigation.investigate()
