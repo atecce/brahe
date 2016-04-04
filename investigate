@@ -93,7 +93,7 @@ class lyrics_site:
 	branching_factor = 8
 
 	# but keep it playful
-	from random import sample
+	from random import sample, shuffle
 
 	# set the canvas
 	canvas = database()
@@ -154,11 +154,21 @@ class lyrics_net(lyrics_site):
 				 	                 len(soup.find_all('div', {'id': 'page-letter-search'})[0])) \
 				          if re.match('^/artists/[A-Z0]$', str(link.get('href'))))
 
-		artist_tags = (trace.strong.a 		  		     			       	    \
+		print "\nTagging..."
+		
+		start = self.time.time()
+
+		artist_tags = [trace.strong.a 		  		     			       	    \
 			       for alphabet_url in alphabet_urls 	     			       	    \
 			       for trace in self.sample(self.communicate(alphabet_url).find_all('tr'), 	    \
 			       				len(self.communicate(alphabet_url).find_all('tr'))) \
-			       		 if trace.strong)
+			       		 if trace.strong]
+
+		print "Tagging", len(artist_tags), "artist tags took", self.time.time() - start, "seconds"
+
+		self.time.sleep(5)
+
+		self.shuffle(artist_tags)
 
 		artist_data = ((artist_tag.text, self.url + artist_tag.get('href')) for artist_tag in artist_tags)
 
@@ -180,7 +190,8 @@ class lyrics_net(lyrics_site):
 		soup = self.communicate(artist_url)
 
 		# conduct their masses
-		for album_label in soup.find_all('h3', {'class': 'artist-album-label'}): 
+		for album_label in self.sample(soup.find_all('h3', {'class': 'artist-album-label'}), \
+					   len(soup.find_all('h3', {'class': 'artist-album-label'}))): 
 
 			album_url   = self.url + album_label.a.get('href')
 			album_title = album_label.a.text
@@ -206,8 +217,9 @@ class lyrics_net(lyrics_site):
 			return
 
 		# find their prayers
-		song_data = ((self.url + song_tag.a.get('href'), song_tag.a.text) \
-			     for song_tag in soup.find_all('strong')		  \
+		song_data = ((self.url + song_tag.a.get('href'), song_tag.a.text)  \
+			     for song_tag in self.sample(soup.find_all('strong'),  \
+			     			     len(soup.find_all('strong'))) \
 			     		  if song_tag.a)
 
 		# say your prayers 		
