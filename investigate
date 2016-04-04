@@ -203,7 +203,7 @@ class lyrics_net(lyrics_site):
 		# find their prayers
 		song_data = ((self.url + song_tag.a.get('href'), song_tag.a.text) \
 			     for song_tag in soup.find_all('strong')		  \
-			     		  if song_tag.find_all('a'))
+			     		  if song_tag.a)
 
 		# say your prayers 		
 		for song_url, song_title in song_data:
