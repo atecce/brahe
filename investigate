@@ -70,6 +70,10 @@ class database:
 
 class lyrics_site:
 
+	import time
+
+	branching_factor = 2
+
 	def communicate(self, url):
 
 		from bs4 import BeautifulSoup
@@ -89,7 +93,32 @@ class lyrics_site:
 			# give communication a chance
 			except requests.exceptions.ConnectionError: pass
 
+			self.time.sleep(1)
+
+	def multitask(self, process, processes):
+
+			process.start()
+
+			alive =  [(process.name, process.is_alive()) for process in processes if process.is_alive()]
+			dead  =  [(process.name, process.is_alive()) for process in processes if not process.is_alive()]
+
+			print alive, len(alive)
+			print dead, len(dead)
+			
+			while len(alive) >= self.branching_factor:
+
+				alive =  [(process.name, process.is_alive()) for process in processes if process.is_alive()]
+				dead  =  [(process.name, process.is_alive()) for process in processes if not process.is_alive()]
+				
+				print alive, len(alive)
+				print dead, len(dead)
+
+				self.time.sleep(1)
+
 class lyrics_net(lyrics_site): 
+
+	# don't wait for your neighbors
+	import multiprocessing
 
 	# get some inspiration
 	url = 'http://www.lyrics.net/'
@@ -119,31 +148,13 @@ class lyrics_net(lyrics_site):
 
 		# talk to all the priests
 		for artist_name, artist_url in artist_data: 
-			
-			# don't wait for your neighbors
-			import multiprocessing
 
-			try:
+			# honor the priest
+			priest = self.multiprocessing.Process(name=artist_name, target=self.honor, args=(artist_name, artist_url,))
 
-				# honor the priest
-				priest = multiprocessing.Process(target=self.honor, args=(artist_name, artist_url,))
+			priests.add(priest)
 
-				priests.add(priest)
-
-				priest.start()
-
-				while len(priests) >= 500:
-
-					len(priests)
-					time.sleep(1)
-
-			except OSError, e:
-
-				print e
-
-				print priests
-
-				break
+			self.multitask(priest, priests)
 
 	def honor(self, artist_name, artist_url):
 
@@ -159,8 +170,15 @@ class lyrics_net(lyrics_site):
 
 		# conduct their masses
 		for album_label in soup.find_all('h3', {'class': 'artist-album-label'}): 
-			
-			self.admire(artist_name, self.url + album_label.find_all('a')[0].get('href'), album_label.find_all('a')[0].text)
+
+			album_url   = self.url + album_label.find_all('a')[0].get('href')
+			album_title = album_label.find_all('a')[0].text
+
+			mass = self.multiprocessing.Process(name=album_title, target=self.admire, args=(artist_name, album_url, album_title,))
+
+			masses.add(mass)
+
+			self.multitask(mass, masses)
 
 	def admire(self, artist_name, album_url, album_title):
 
@@ -178,7 +196,13 @@ class lyrics_net(lyrics_site):
 			     for song_tag in soup.find_all('strong') 						\
 			     		  if song_tag.find_all('a'))
 
-		for song_url, song_title in song_data: self.experience(album_title, song_url, song_title)
+		for song_url, song_title in song_data:
+
+			prayer = self.multiprocessing.Process(name=song_title, target=self.experience, args=(album_title, song_url, song_title,))
+
+			prayers.add(prayer)
+			
+			self.multitask(prayer, prayers)
 
 	def experience(self, album_title, song_url, song_title):
 
@@ -198,6 +222,8 @@ class lyrics_net(lyrics_site):
 if __name__ == '__main__':
 
 	priests = set()
+	masses  = set()
+	prayers = set()
 
 	investigation = lyrics_net()
 
