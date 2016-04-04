@@ -123,8 +123,6 @@ class lyrics_net(lyrics_site):
 			# don't wait for your neighbors
 			import multiprocessing
 
-			priests = set()
-
 			try:
 
 				# honor the priest
@@ -133,6 +131,11 @@ class lyrics_net(lyrics_site):
 				priests.add(priest)
 
 				priest.start()
+
+				while len(priests) >= 500:
+
+					len(priests)
+					time.sleep(1)
 
 			except OSError, e:
 
@@ -145,10 +148,6 @@ class lyrics_net(lyrics_site):
 	def honor(self, artist_name, artist_url):
 
 		# don't forget the priest
-		print
-		print artist_name
-		print
-
 		self.canvas.draw("""insert into artists (name)
 					   values (%s)
 					   on duplicate key update
@@ -196,6 +195,10 @@ class lyrics_net(lyrics_site):
 					   album_title = album_title, title = title, lyrics = lyrics""",
 					   [album_title, song_title, lyrics])
 
-investigation = lyrics_net()
+if __name__ == '__main__':
 
-investigation.investigate()
+	priests = set()
+
+	investigation = lyrics_net()
+
+	investigation.investigate()
