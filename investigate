@@ -68,7 +68,29 @@ class database:
 
 		canvas.close()
 
+	def caught_up(self, song, album):
+
+		# compare yourself to others
+		canvas = self.MySQLdb.connect('localhost', 'root', db='multiprocessing')
+		brush  = canvas.cursor()
+
+		if brush.execute("select title, album_title from songs where title=%s and album_title=%s", (song, album)):
+			
+			canvas.close()
+			return True
+
+		canvas.close()
+
 class lyrics_site:
+
+	# wait
+	import time
+
+	# focus
+	branching_factor = 8
+
+	# set the canvas
+	canvas = database()
 
 	def communicate(self, url):
 
@@ -89,13 +111,29 @@ class lyrics_site:
 			# give communication a chance
 			except requests.exceptions.ConnectionError: pass
 
+			self.time.sleep(1)
+
+	def multitask(self, process, processes):
+
+			process.start()
+
+			alive =  [(process.name, process.is_alive()) for process in processes if process.is_alive()]
+			dead  =  [(process.name, process.is_alive()) for process in processes if not process.is_alive()]
+			
+			while len(alive) >= self.branching_factor:
+
+				alive =  [(process.name, process.is_alive()) for process in processes if process.is_alive()]
+				dead  =  [(process.name, process.is_alive()) for process in processes if not process.is_alive()]
+
+				self.time.sleep(1)
+
 class lyrics_net(lyrics_site): 
+
+	# don't wait for your neighbors
+	import multiprocessing
 
 	# get some inspiration
 	url = 'http://www.lyrics.net/'
-
-	# set the canvas
-	canvas = database()
 
 	def investigate(self):
 
@@ -119,31 +157,13 @@ class lyrics_net(lyrics_site):
 
 		# talk to all the priests
 		for artist_name, artist_url in artist_data: 
-			
-			# don't wait for your neighbors
-			import multiprocessing
 
-			try:
+			# honor the priest
+			priest = self.multiprocessing.Process(name=artist_name, target=self.honor, args=(artist_name, artist_url,))
 
-				# honor the priest
-				priest = multiprocessing.Process(target=self.honor, args=(artist_name, artist_url,))
+			priests.add(priest)
 
-				priests.add(priest)
-
-				priest.start()
-
-				while len(priests) >= 500:
-
-					len(priests)
-					time.sleep(1)
-
-			except OSError, e:
-
-				print e
-
-				print priests
-
-				break
+			self.multitask(priest, priests)
 
 	def honor(self, artist_name, artist_url):
 
@@ -159,8 +179,15 @@ class lyrics_net(lyrics_site):
 
 		# conduct their masses
 		for album_label in soup.find_all('h3', {'class': 'artist-album-label'}): 
-			
-			self.admire(artist_name, self.url + album_label.find_all('a')[0].get('href'), album_label.find_all('a')[0].text)
+
+			album_url   = self.url + album_label.find_all('a')[0].get('href')
+			album_title = album_label.find_all('a')[0].text
+
+			mass = self.multiprocessing.Process(name=album_title, target=self.admire, args=(artist_name, album_url, album_title,))
+
+			masses.add(mass)
+
+			self.multitask(mass, masses)
 
 	def admire(self, artist_name, album_url, album_title):
 
@@ -173,17 +200,40 @@ class lyrics_net(lyrics_site):
 
 		soup = self.communicate(album_url)
 
+		if soup.find_all('body', {'id': 's4-page-homepage'}): 
+			
+			print "Artist:", artist_name, "\nAlbum:", album_title, "\nredirects to home page"
+			print
+			return
+
 		# find their prayers
 		song_data = ((self.url + song_tag.find_all('a')[0].get('href'), song_tag.find_all('a')[0].text) \
 			     for song_tag in soup.find_all('strong') 						\
 			     		  if song_tag.find_all('a'))
 
-		for song_url, song_title in song_data: self.experience(album_title, song_url, song_title)
+		# say your prayers 		
+		for song_url, song_title in song_data:
+
+			# don't repeat yourself
+			if self.canvas.caught_up(song_title, album_title): continue
+	
+			prayer = self.multiprocessing.Process(name=song_title, target=self.experience, args=(album_title, song_url, song_title,))
+
+			prayers.add(prayer)
+			
+			self.multitask(prayer, prayers)
 
 	def experience(self, album_title, song_url, song_title):
 
 		# please kneel
 		soup = self.communicate(song_url)
+
+		# don't go home too early
+		if soup.find_all('body', {'id': 's4-page-homepage'}): 
+			
+			print "Song:", song_title, "\nAlbum:", album_title, "\nredirects to home page"
+			print
+			return
 
 		try: lyrics = soup.find_all('pre', {'id': 'lyric-body-text'})[0].text
 
@@ -198,6 +248,8 @@ class lyrics_net(lyrics_site):
 if __name__ == '__main__':
 
 	priests = set()
+	masses  = set()
+	prayers = set()
 
 	investigation = lyrics_net()
 
