@@ -92,6 +92,9 @@ class lyrics_site:
 	# and focus
 	branching_factor = 8
 
+	# but keep it playful
+	from random import sample
+
 	# set the canvas
 	canvas = database()
 
@@ -146,14 +149,16 @@ class lyrics_net(lyrics_site):
 		soup = self.communicate(self.url)
 
 		# get the priests
-		alphabet_urls = (self.url + re.match('^/artists/[A-Z0]$', link.get('href')).group(0) + '/99999' \
-				 for link in soup.find_all('div', {'id': 'page-letter-search'})[0] 		\
+		alphabet_urls = (self.url + re.match('^/artists/[A-Z0]$', link.get('href')).group(0) + '/99999'      \
+				 for link in self.sample(soup.find_all('div', {'id': 'page-letter-search'})[0],      \
+				 	                 len(soup.find_all('div', {'id': 'page-letter-search'})[0])) \
 				          if re.match('^/artists/[A-Z0]$', str(link.get('href'))))
 
-		artist_tags = (trace.strong.a 		  				  \
-			       for alphabet_url in alphabet_urls 	    		  \
-			       for trace in self.communicate(alphabet_url).find_all('tr') \
-			       		 if trace.find_all('strong'))
+		artist_tags = (trace.strong.a 		  		     			       	    \
+			       for alphabet_url in alphabet_urls 	     			       	    \
+			       for trace in self.sample(self.communicate(alphabet_url).find_all('tr'), 	    \
+			       				len(self.communicate(alphabet_url).find_all('tr'))) \
+			       		 if trace.strong)
 
 		artist_data = ((artist_tag.text, self.url + artist_tag.get('href')) for artist_tag in artist_tags)
 
@@ -231,15 +236,20 @@ class lyrics_net(lyrics_site):
 
 		except IndexError: return
 
+		# please kneel
 		self.canvas.draw("""insert into songs (album_title, title, lyrics)
 					   values (%s, %s, %s)
 					   on duplicate key update
 					   album_title = album_title, title = title, lyrics = lyrics""",
 					   [album_title, song_title, lyrics])
 
-		self.canvas.draw("songs", [album_title, song_title, lyrics])
-
 		print "\t\tSong:", song_title, "\n\t\tAlbum:", album_title, "\n\t\tinserted\n"
+
+		print
+
+		for line in lyrics.splitlines(): print '\t\t\t', line
+
+		print
 
 if __name__ == '__main__':
 
