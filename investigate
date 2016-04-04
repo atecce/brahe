@@ -14,13 +14,13 @@ class database:
 
 	try: 
 
-		brush.execute("create database multiprocessing")
+		brush.execute("create database lyrics_net")
 		canvas.close()
 
 	except: canvas.close()
 
 	# sketch the outline
-	canvas = MySQLdb.connect('localhost', 'root', db ='multiprocessing')
+	canvas = MySQLdb.connect('localhost', 'root', db ='lyrics_net')
 	brush  = canvas.cursor()
 
 	brush.execute("""create table if not exists artists (
@@ -60,7 +60,7 @@ class database:
 	def draw(self, query, args):
 
 		# sketch the outline
-		canvas = self.MySQLdb.connect('localhost', 'root', db='multiprocessing')
+		canvas = self.MySQLdb.connect('localhost', 'root', db='lyrics_net')
 		brush  = canvas.cursor()
 
 		brush.execute(query, args)
@@ -71,7 +71,7 @@ class database:
 	def caught_up(self, song, album):
 
 		# compare yourself to others
-		canvas = self.MySQLdb.connect('localhost', 'root', db='multiprocessing')
+		canvas = self.MySQLdb.connect('localhost', 'root', db='lyrics_net')
 		brush  = canvas.cursor()
 
 		if brush.execute("select title, album_title from songs where title=%s and album_title=%s", (song, album)):
