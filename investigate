@@ -25,44 +25,42 @@ class database:
 
 	brush.execute("""create table if not exists artists (
 								  
-				 name varchar(255) not null, 	  
-								  
-				 primary key (name) 		  
-								  
-				 )""")
+				name varchar(255) not null, 	  
+				       			  
+				primary key (name) 		  
+				       			  
+				)""")
 
 	brush.execute("""create table if not exists albums ( 		
+				       					
+				title varchar(255) not null, 			
 										
-				 artist_name varchar(255) not null,  		
-										
-				 title varchar(255) not null, 			
-										
-				 primary key (title), 				
-				 foreign key (artist_name) references artists (name) 
-										
-				 )""")
+				artist_name varchar(255) not null,  		
+				       					
+				primary key (title, artist_name), 				
+				foreign key (artist_name) references artists (name) 
+				       					
+				)""")
 
 	brush.execute("""create table if not exists songs ( 	    	       
+				       				       
+				title varchar(255) not null, 	    	       
 									       
-				 id int unsigned not null auto_increment, 	       
-									       
-				 album_title varchar(255) not null, 	    	       
-									       
-				 title varchar(255) not null, 	    	       
-									       
-				 lyrics text, 			    	       
-									       
-				 primary key (id), 			    	       
-				 foreign key (album_title) references albums (title) 
-									       
-				 )""")
+				album_title varchar(255) not null, 	    	       
+				       				       
+				lyrics text, 			    	       
+				       				       
+				primary key (album_title, title),
+				foreign key (album_title) references albums (title) 
+				       				       
+				)""")
 
 	canvas.close()
 
 	def draw(self, query, args):
 
 		# sketch the outline
-		canvas = self.MySQLdb.connect('localhost', 'root', db ='multiprocessing')
+		canvas = self.MySQLdb.connect('localhost', 'root', db='multiprocessing')
 		brush  = canvas.cursor()
 
 		brush.execute(query, args)
@@ -127,12 +125,22 @@ class lyrics_net(lyrics_site):
 
 			priests = set()
 
-			# honor the priest
-			priest = multiprocessing.Process(target=self.honor, args=(artist_name, artist_url,))
+			try:
 
-			priests.add(priest)
+				# honor the priest
+				priest = multiprocessing.Process(target=self.honor, args=(artist_name, artist_url,))
 
-			priest.start()
+				priests.add(priest)
+
+				priest.start()
+
+			except OSError, e:
+
+				print e
+
+				print priests
+
+				break
 
 	def honor(self, artist_name, artist_url):
 
@@ -142,10 +150,10 @@ class lyrics_net(lyrics_site):
 		print
 
 		self.canvas.draw("""insert into artists (name)
-					    values (%s)
-					    on duplicate key update
-					    name = name""",
-					    [artist_name])
+					   values (%s)
+					   on duplicate key update
+					   name = name""",
+					   [artist_name])
 
 		# attend the masses
 		soup = self.communicate(artist_url)
@@ -159,10 +167,10 @@ class lyrics_net(lyrics_site):
 
 		# don't forget the mass
 		self.canvas.draw("""insert into albums (artist_name, title)
-					    values (%s, %s)
-					    on duplicate key update
-					    artist_name = artist_name, title = title""",
-					    [artist_name, album_title])
+					   values (%s, %s)
+					   on duplicate key update
+					   artist_name = artist_name, title = title""",
+					   [artist_name, album_title])
 
 		soup = self.communicate(album_url)
 
@@ -183,10 +191,10 @@ class lyrics_net(lyrics_site):
 		except IndexError: return
 
 		self.canvas.draw("""insert into songs (album_title, title, lyrics)
-					    values (%s, %s, %s)
-					    on duplicate key update
-					    album_title = album_title, title = title, lyrics = lyrics""",
-					    [album_title, song_title, lyrics])
+					   values (%s, %s, %s)
+					   on duplicate key update
+					   album_title = album_title, title = title, lyrics = lyrics""",
+					   [album_title, song_title, lyrics])
 
 investigation = lyrics_net()
 
