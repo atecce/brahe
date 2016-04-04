@@ -150,7 +150,7 @@ class lyrics_net(lyrics_site):
 				 for link in soup.find_all('div', {'id': 'page-letter-search'})[0] 		\
 				          if re.match('^/artists/[A-Z0]$', str(link.get('href'))))
 
-		artist_tags = (trace.find_all('strong')[0].find_all('a')[0] 		  \
+		artist_tags = (trace.strong.a 		  				  \
 			       for alphabet_url in alphabet_urls 	    		  \
 			       for trace in self.communicate(alphabet_url).find_all('tr') \
 			       		 if trace.find_all('strong'))
@@ -177,8 +177,8 @@ class lyrics_net(lyrics_site):
 		# conduct their masses
 		for album_label in soup.find_all('h3', {'class': 'artist-album-label'}): 
 
-			album_url   = self.url + album_label.find_all('a')[0].get('href')
-			album_title = album_label.find_all('a')[0].text
+			album_url   = self.url + album_label.a.get('href')
+			album_title = album_label.a.text
 
 			self.multitask(masses, album_title, self.admire, (artist_name, album_url, album_title,))
 
@@ -201,8 +201,8 @@ class lyrics_net(lyrics_site):
 			return
 
 		# find their prayers
-		song_data = ((self.url + song_tag.find_all('a')[0].get('href'), song_tag.find_all('a')[0].text) \
-			     for song_tag in soup.find_all('strong') 						\
+		song_data = ((self.url + song_tag.a.get('href'), song_tag.a.text) \
+			     for song_tag in soup.find_all('strong')		  \
 			     		  if song_tag.find_all('a'))
 
 		# say your prayers 		
@@ -236,6 +236,8 @@ class lyrics_net(lyrics_site):
 					   on duplicate key update
 					   album_title = album_title, title = title, lyrics = lyrics""",
 					   [album_title, song_title, lyrics])
+
+		self.canvas.draw("songs", [album_title, song_title, lyrics])
 
 		print "\t\tSong:", song_title, "\n\t\tAlbum:", album_title, "\n\t\tinserted\n"
 
