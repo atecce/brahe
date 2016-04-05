@@ -97,6 +97,8 @@ class lyrics_net(lyrics_site):
 
 	def honor(self, artist_name, artist_url):
 
+		soup = self.communicate(artist_url)
+
 		self.canvas.draw("""insert into artists (name)
 					   values (%s)
 					   on duplicate key update
@@ -105,7 +107,6 @@ class lyrics_net(lyrics_site):
 
 		print "\nArtist:", artist_name, "\ninserted"
 
-		soup = self.communicate(artist_url)
 
 		album_labels = soup.find_all('h3', {'class': 'artist-album-label'})
 
@@ -129,6 +130,14 @@ class lyrics_net(lyrics_site):
 
 	def admire(self, artist_name, album_url, album_title):
 
+		soup = self.communicate(album_url)
+
+		# TODO
+		if soup.find_all('body', {'id': 's4-page-homepage'}): 
+			
+			print "\tArtist:", artist_name, "\n\tAlbum:", album_title, "\n\tredirects to home page\n"
+			return
+
 		self.canvas.draw("""insert into albums (artist_name, title)
 					   values (%s, %s)
 					   on duplicate key update
@@ -137,13 +146,6 @@ class lyrics_net(lyrics_site):
 
 		print "\n\tArtist:", artist_name, "\n\tAlbum:", album_title, "\n\tinserted"
 
-		soup = self.communicate(album_url)
-
-		# TODO
-		if soup.find_all('body', {'id': 's4-page-homepage'}): 
-			
-			print "\tArtist:", artist_name, "\n\tAlbum:", album_title, "\n\tredirects to home page\n"
-			return
 
 		song_data = ((self.url + song_tag.a.get('href'), song_tag.a.text)  \
 			     for song_tag in soup.find_all('strong')  		   \
