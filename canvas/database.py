@@ -13,64 +13,93 @@ class canvas:
 
 	except: canvas.close()
 
-	# sketch the outline
-	canvas = MySQLdb.connect('localhost', 'root', db ='lyrics_net')
-	brush  = canvas.cursor()
+	def __init__(self):
 
-	brush.execute("""create table if not exists artists (
+		# sketch the outline
+		canvas, brush = self.prepare()
+
+		brush.execute("""create table if not exists artists (
+									  
+					name varchar(255) not null, 	  
 								  
-				name varchar(255) not null, 	  
-				       			  
-				primary key (name) 		  
-				       			  
-				)""")
+					primary key (name) 		  
+								  
+					)""")
 
-	brush.execute("""create table if not exists albums ( 		
-				       					
-				title varchar(255) not null, 			
+		brush.execute("""create table if not exists albums ( 		
 										
-				artist_name varchar(255) not null,  		
-				       					
-				primary key (title, artist_name), 				
-				foreign key (artist_name) references artists (name) 
-				       					
-				)""")
+					title varchar(255) not null, 			
+											
+					artist_name varchar(255) not null,  		
+										
+					primary key (title, artist_name), 				
+					foreign key (artist_name) references artists (name) 
+										
+					)""")
 
-	brush.execute("""create table if not exists songs ( 	    	       
-				       				       
-				title varchar(255) not null, 	    	       
+		brush.execute("""create table if not exists songs ( 	    	       
 									       
-				album_title varchar(255) not null, 	    	       
-				       				       
-				lyrics text, 			    	       
-				       				       
-				primary key (album_title, title),
-				foreign key (album_title) references albums (title)
-				
-				)""")
+					title varchar(255) not null, 	    	       
+										       
+					album_title varchar(255) not null, 	    	       
+									       
+					lyrics text, 			    	       
+									       
+					primary key (album_title, title),
+					foreign key (album_title) references albums (title)
+					
+					)""")
 
-	canvas.close()
+		canvas.close()
+
+	def prepare(self):
+
+		canvas = self.MySQLdb.connect('localhost', 'root', db='lyrics_net')
+		brush  = canvas.cursor()
+
+		return canvas, brush
 
 	def draw(self, query, args):
 
-		# sketch the outline
-		canvas = self.MySQLdb.connect('localhost', 'root', db='lyrics_net')
-		brush  = canvas.cursor()
+		canvas, brush = self.prepare()
 
 		brush.execute(query, args)
 		canvas.commit()
 
 		canvas.close()
 
-	def caught_up(self, song, album):
+	def get_artists(self):
 
-		# compare yourself to others
-		canvas = self.MySQLdb.connect('localhost', 'root', db='lyrics_net')
-		brush  = canvas.cursor()
+		canvas, brush = self.prepare()
 
-		if brush.execute("select title, album_title from songs where title=%s and album_title=%s", (song, album)):
-			
-			canvas.close()
-			return True
+		brush.execute("select name from artists")
+
+		artists = set([item[0] for item in brush.fetchall()])
 
 		canvas.close()
+
+		return artists
+
+	def get_albums(self, artist):
+
+		canvas, brush = self.prepare()
+
+		brush.execute("select title from albums where artist_name=%s", (artist,))
+
+		albums = set([item[0] for item in brush.fetchall()])
+
+		canvas.close()
+
+		return albums
+
+	def get_songs(self, album):
+
+		canvas, brush = self.prepare()
+
+		brush.execute("select title from songs where album_title=%s", (album,))
+
+		songs = set([item[0] for item in brush.fetchall()])
+
+		canvas.close()
+
+		return songs

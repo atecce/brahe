@@ -17,9 +17,6 @@ class lyrics_site:
 	# and focus
 	branching_factor = 8
 
-	# but keep it playful
-	from random import sample, shuffle
-
 	# set the canvas
 	canvas = database.canvas()
 
@@ -62,47 +59,44 @@ class lyrics_site:
 
 class lyrics_net(lyrics_site): 
 
-	# get some inspiration
 	url = 'http://www.lyrics.net/'
 
 	def investigate(self):
 
-		# need this to understand the text
 		import re
 
-		# talk to the text
 		soup = self.communicate(self.url)
 
-		# get the priests
-		alphabet_urls = (self.url + re.match('^/artists/[A-Z0]$', link.get('href')).group(0) + '/99999'      \
-				 for link in self.sample(soup.find_all('div', {'id': 'page-letter-search'})[0],      \
-				 	                 len(soup.find_all('div', {'id': 'page-letter-search'})[0])) \
+		alphabet_urls = (self.url + re.match('^/artists/[A-Z0]$', link.get('href')).group(0) + '/99999' \
+				 for link in soup.find_all('div', {'id': 'page-letter-search'})[0]      	\
 				          if re.match('^/artists/[A-Z0]$', str(link.get('href'))))
 
-		print "\nTagging..."
-		
-		start = self.time.time()
-
-		artist_tags = [trace.strong.a 		  		     			       	    \
-			       for alphabet_url in alphabet_urls 	     			       	    \
-			       for trace in self.sample(self.communicate(alphabet_url).find_all('tr'), 	    \
-			       				len(self.communicate(alphabet_url).find_all('tr'))) \
-			       		 if trace.strong]
-
-		print "Tagging", len(artist_tags), "artist tags took", self.time.time() - start, "seconds"
-
-		self.time.sleep(5)
-
-		self.shuffle(artist_tags)
+		artist_tags = (trace.strong.a 		  		     		  \
+			       for alphabet_url in alphabet_urls 	     	 	  \
+			       for trace in self.communicate(alphabet_url).find_all('tr') \
+			       		 if trace.strong)
 
 		artist_data = ((artist_tag.text, self.url + artist_tag.get('href')) for artist_tag in artist_tags)
 
-		# talk to all the priests
-		for artist_name, artist_url in artist_data: self.multitask(priests, artist_name, self.honor, (artist_name, artist_url,))
+		started = list()
+
+		for artist_name, artist_url in artist_data: 
+			
+			if artist_name in self.canvas.get_artists():
+
+				print "\nArtist:", artist_name, "\nstarted already."
+
+				started.append((artist_name, artist_url))
+				continue
+
+			self.multitask(artists, artist_name, self.honor, (artist_name, artist_url,))
+
+		for artist_name, artist_url in started: 
+
+			self.multitask(artists, artist_name, self.honor, (artist_name, artist_url,))
 
 	def honor(self, artist_name, artist_url):
 
-		# don't forget the priest
 		self.canvas.draw("""insert into artists (name)
 					   values (%s)
 					   on duplicate key update
@@ -111,21 +105,30 @@ class lyrics_net(lyrics_site):
 
 		print "\nArtist:", artist_name, "\ninserted"
 
-		# attend the masses
 		soup = self.communicate(artist_url)
 
-		# conduct their masses
-		for album_label in self.sample(soup.find_all('h3', {'class': 'artist-album-label'}), \
-					   len(soup.find_all('h3', {'class': 'artist-album-label'}))): 
+		album_labels = soup.find_all('h3', {'class': 'artist-album-label'})
 
-			album_url   = self.url + album_label.a.get('href')
+		started = list()
+
+		for album_label in album_labels:
+
 			album_title = album_label.a.text
+			album_url   = self.url + album_label.a.get('href')
 
-			self.multitask(masses, album_title, self.admire, (artist_name, album_url, album_title,))
+			if album_title in self.canvas.get_albums(artist_name):
+
+				started.append((album_title, album_url))
+				continue
+
+			self.multitask(albums, album_title, self.admire, (artist_name, album_url, album_title,))
+
+		for album_title, album_url in started: 
+
+			self.multitask(albums, album_title, self.admire, (artist_name, album_url, album_title,))
 
 	def admire(self, artist_name, album_url, album_title):
 
-		# don't forget the mass
 		self.canvas.draw("""insert into albums (artist_name, title)
 					   values (%s, %s)
 					   on duplicate key update
@@ -136,34 +139,25 @@ class lyrics_net(lyrics_site):
 
 		soup = self.communicate(album_url)
 
+		# TODO
 		if soup.find_all('body', {'id': 's4-page-homepage'}): 
 			
 			print "\tArtist:", artist_name, "\n\tAlbum:", album_title, "\n\tredirects to home page\n"
 			return
 
-		# find their prayers
 		song_data = ((self.url + song_tag.a.get('href'), song_tag.a.text)  \
-			     for song_tag in self.sample(soup.find_all('strong'),  \
-			     			     len(soup.find_all('strong'))) \
+			     for song_tag in soup.find_all('strong')  		   \
 			     		  if song_tag.a)
 
-		# say your prayers 		
 		for song_url, song_title in song_data:
 
-			# don't repeat yourself
-			if self.canvas.caught_up(song_title, album_title): 
-				
-				print "\n\t\tSong:", song_title, "\n\t\tAlbum:", album_title, "\n\t\talready completed\n"
-				continue
-			
-			self.multitask(prayers, song_title, self.experience, (album_title, song_url, song_title,))
+			self.multitask(songs, song_title, self.experience, (album_title, song_url, song_title,))
 
 	def experience(self, album_title, song_url, song_title):
 
-		# please kneel
 		soup = self.communicate(song_url)
 
-		# don't go home too early
+		# TODO
 		if soup.find_all('body', {'id': 's4-page-homepage'}): 
 			
 			print "\n\t\tSong:", song_title, "\n\t\tAlbum:", album_title, "\n\t\tredirects to home page\n"
@@ -173,7 +167,6 @@ class lyrics_net(lyrics_site):
 
 		except IndexError: return
 
-		# please kneel
 		self.canvas.draw("""insert into songs (album_title, title, lyrics)
 					   values (%s, %s, %s)
 					   on duplicate key update
@@ -190,9 +183,9 @@ class lyrics_net(lyrics_site):
 
 if __name__ == '__main__':
 
-	priests = set()
-	masses  = set()
-	prayers = set()
+	artists = set()
+	albums  = set()
+	songs   = set()
 
 	investigation = lyrics_net()
 
