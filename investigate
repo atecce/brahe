@@ -90,6 +90,7 @@ class lyrics_site:
 	# and focus
 	branching_factor = 8
 
+	# TODO be more organized
 	# but keep it playful
 	from random import sample, shuffle
 
