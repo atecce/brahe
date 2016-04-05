@@ -6,7 +6,6 @@
 
 class database:
 
-	# set the canvas
 	import MySQLdb
 
 	canvas = MySQLdb.connect('localhost', 'root')
@@ -19,7 +18,6 @@ class database:
 
 	except: canvas.close()
 
-	# sketch the outline
 	canvas = MySQLdb.connect('localhost', 'root', db ='lyrics_net')
 	brush  = canvas.cursor()
 
@@ -148,7 +146,6 @@ class lyrics_net(lyrics_site):
 		# talk to the text
 		soup = self.communicate(self.url)
 
-		# get the priests
 		alphabet_urls = (self.url + re.match('^/artists/[A-Z0]$', link.get('href')).group(0) + '/99999'      \
 				 for link in self.sample(soup.find_all('div', {'id': 'page-letter-search'})[0],      \
 				 	                 len(soup.find_all('div', {'id': 'page-letter-search'})[0])) \
@@ -172,12 +169,10 @@ class lyrics_net(lyrics_site):
 
 		artist_data = ((artist_tag.text, self.url + artist_tag.get('href')) for artist_tag in artist_tags)
 
-		# talk to all the priests
 		for artist_name, artist_url in artist_data: self.multitask(priests, artist_name, self.honor, (artist_name, artist_url,))
 
 	def honor(self, artist_name, artist_url):
 
-		# don't forget the priest
 		self.canvas.draw("""insert into artists (name)
 					   values (%s)
 					   on duplicate key update
@@ -186,10 +181,8 @@ class lyrics_net(lyrics_site):
 
 		print "\nArtist:", artist_name, "\ninserted"
 
-		# attend the masses
 		soup = self.communicate(artist_url)
 
-		# conduct their masses
 		for album_label in self.sample(soup.find_all('h3', {'class': 'artist-album-label'}), \
 					   len(soup.find_all('h3', {'class': 'artist-album-label'}))): 
 
@@ -200,7 +193,6 @@ class lyrics_net(lyrics_site):
 
 	def admire(self, artist_name, album_url, album_title):
 
-		# don't forget the mass
 		self.canvas.draw("""insert into albums (artist_name, title)
 					   values (%s, %s)
 					   on duplicate key update
@@ -216,13 +208,11 @@ class lyrics_net(lyrics_site):
 			print "\tArtist:", artist_name, "\n\tAlbum:", album_title, "\n\tredirects to home page\n"
 			return
 
-		# find their prayers
 		song_data = ((self.url + song_tag.a.get('href'), song_tag.a.text)  \
 			     for song_tag in self.sample(soup.find_all('strong'),  \
 			     			     len(soup.find_all('strong'))) \
 			     		  if song_tag.a)
 
-		# say your prayers 		
 		for song_url, song_title in song_data:
 
 			# don't repeat yourself
@@ -235,9 +225,9 @@ class lyrics_net(lyrics_site):
 
 	def experience(self, album_title, song_url, song_title):
 
-		# please kneel
 		soup = self.communicate(song_url)
 
+		# TODO
 		# don't go home too early
 		if soup.find_all('body', {'id': 's4-page-homepage'}): 
 			
