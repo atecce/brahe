@@ -59,13 +59,43 @@ class canvas:
 
 		return canvas, brush
 
-	def draw(self, query, args):
+	def add_artist(self, artist_name):
 
 		canvas, brush = self.prepare()
 
-		brush.execute(query, args)
-		canvas.commit()
+		self.canvas.draw("""insert into artists (name)
+					   values (%s)
+					   on duplicate key update
+					   name = name""",
+					   [artist_name])
 
+		canvas.commit()
+		canvas.close()
+
+	def add_album(self, artist_name, album_title):
+
+		canvas, brush = self.prepare()
+
+		self.canvas.draw("""insert into albums (artist_name, title)
+					   values (%s, %s)
+					   on duplicate key update
+					   artist_name = artist_name, title = title""",
+					   [artist_name, album_title])
+
+		canvas.commit()
+		canvas.close()
+
+	def add_song(self, album_title, song_title, lyrics):
+
+		canvas, brush = self.prepare()
+
+		brush.execute("""insert into songs (album_title, title, lyrics)
+					values (%s, %s, %s)
+					on duplicate key update
+					album_title = album_title, title = title, lyrics = lyrics""",
+					[album_title, song_title, lyrics])
+
+		canvas.commit()
 		canvas.close()
 
 	def get_artists(self):

@@ -45,15 +45,15 @@ class lyrics_site:
 
 			process = self.multiprocessing.Process(name=process_name, target=process_target, args=process_args)
 
-			processes.add(process)
+			processes.append(process)
 
 			process.start()
 
-			alive =  [(process.name, process.is_alive()) for process in processes if process.is_alive()]
+			alive = [(process.name, process.is_alive()) for process in processes if process.is_alive()]
 			
 			while len(alive) >= self.branching_factor:
 
-				alive =  [(process.name, process.is_alive()) for process in processes if process.is_alive()]
+				alive = [(process.name, process.is_alive()) for process in processes if process.is_alive()]
 
 				self.time.sleep(1)
 
@@ -81,34 +81,29 @@ class lyrics_net(lyrics_site):
 		started = list()
 
 		for artist_name, artist_url in artist_data: 
+
+			artist_soup = self.communicate(artist_url)
 			
 			if artist_name in self.canvas.get_artists():
 
 				print "\nArtist:", artist_name, "\nstarted already."
 
-				started.append((artist_name, artist_url))
+				started.append((artist_name, artist_soup))
 				continue
 
-			self.multitask(artists, artist_name, self.honor, (artist_name, artist_url,))
+			self.multitask(artists, artist_name, self.honor, (artist_name, artist_soup,))
 
-		for artist_name, artist_url in started: 
+		for artist_name, artist_soup in started: 
 
-			self.multitask(artists, artist_name, self.honor, (artist_name, artist_url,))
+			self.multitask(artists, artist_name, self.honor, (artist_name, artist_soup,))
 
-	def honor(self, artist_name, artist_url):
+	def honor(self, artist_name, artist_soup):
 
-		soup = self.communicate(artist_url)
-
-		self.canvas.draw("""insert into artists (name)
-					   values (%s)
-					   on duplicate key update
-					   name = name""",
-					   [artist_name])
+		self.canvas.add_artist(artist_name)
 
 		print "\nArtist:", artist_name, "\ninserted"
 
-
-		album_labels = soup.find_all('h3', {'class': 'artist-album-label'})
+		album_labels = artist_soup.find_all('h3', {'class': 'artist-album-label'})
 
 		started = list()
 
@@ -117,63 +112,56 @@ class lyrics_net(lyrics_site):
 			album_title = album_label.a.text
 			album_url   = self.url + album_label.a.get('href')
 
+			album_soup = self.communicate(album_url)
+
 			if album_title in self.canvas.get_albums(artist_name):
 
-				started.append((album_title, album_url))
+				started.append((album_title, album_soup))
 				continue
 
-			self.multitask(albums, album_title, self.admire, (artist_name, album_url, album_title,))
+			# TODO
+			if album_soup.find_all('body', {'id': 's4-page-homepage'}): 
+				
+				print "\tArtist:", artist_name, "\n\tAlbum:", album_title, "\n\tredirects to home page\n"
+				home_page_albums.append((artist_name, album_title))
+				continue
 
-		for album_title, album_url in started: 
+			self.multitask(albums, album_title, self.admire, (artist_name, album_soup, album_title,))
 
-			self.multitask(albums, album_title, self.admire, (artist_name, album_url, album_title,))
+		for album_title, album_soup in started: 
 
-	def admire(self, artist_name, album_url, album_title):
+			self.multitask(albums, album_title, self.admire, (artist_name, album_soup, album_title,))
 
-		soup = self.communicate(album_url)
+	def admire(self, artist_name, album_soup, album_title):
 
-		# TODO
-		if soup.find_all('body', {'id': 's4-page-homepage'}): 
-			
-			print "\tArtist:", artist_name, "\n\tAlbum:", album_title, "\n\tredirects to home page\n"
-			return
-
-		self.canvas.draw("""insert into albums (artist_name, title)
-					   values (%s, %s)
-					   on duplicate key update
-					   artist_name = artist_name, title = title""",
-					   [artist_name, album_title])
+		self.canvas.add_album(artist_name, album_title)
 
 		print "\n\tArtist:", artist_name, "\n\tAlbum:", album_title, "\n\tinserted"
 
-
 		song_data = ((self.url + song_tag.a.get('href'), song_tag.a.text)  \
-			     for song_tag in soup.find_all('strong')  		   \
+			     for song_tag in album_soup.find_all('strong') 	   \
 			     		  if song_tag.a)
 
 		for song_url, song_title in song_data:
 
-			self.multitask(songs, song_title, self.experience, (album_title, song_url, song_title,))
+			song_soup = self.communicate(song_url)
 
-	def experience(self, album_title, song_url, song_title):
+			# TODO
+			if song_soup.find_all('body', {'id': 's4-page-homepage'}): 
+				
+				print "\n\t\tSong:", song_title, "\n\t\tAlbum:", album_title, "\n\t\tredirects to home page\n"
+				home_page_songs.append((album_title, song_title))
+				continue
 
-		soup = self.communicate(song_url)
+			self.multitask(songs, song_title, self.experience, (album_title, song_soup, song_title,))
 
-		# TODO
-		if soup.find_all('body', {'id': 's4-page-homepage'}): 
-			
-			print "\n\t\tSong:", song_title, "\n\t\tAlbum:", album_title, "\n\t\tredirects to home page\n"
-			return
+	def experience(self, album_title, song_soup, song_title):
 
-		try: lyrics = soup.find_all('pre', {'id': 'lyric-body-text'})[0].text
+		try: lyrics = song_soup.find_all('pre', {'id': 'lyric-body-text'})[0].text
 
 		except IndexError: return
 
-		self.canvas.draw("""insert into songs (album_title, title, lyrics)
-					   values (%s, %s, %s)
-					   on duplicate key update
-					   album_title = album_title, title = title, lyrics = lyrics""",
-					   [album_title, song_title, lyrics])
+		self.canvas.add_song(album_title, song_title, lyrics)
 
 		print "\t\tSong:", song_title, "\n\t\tAlbum:", album_title, "\n\t\tinserted\n"
 
@@ -185,9 +173,12 @@ class lyrics_net(lyrics_site):
 
 if __name__ == '__main__':
 
-	artists = set()
-	albums  = set()
-	songs   = set()
+	artists = list()
+	albums  = list()
+	songs   = list()
+
+	home_page_albums = list()
+	home_page_songs  = list()
 
 	investigation = lyrics_net()
 
