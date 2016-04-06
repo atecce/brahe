@@ -4,20 +4,13 @@
 # But, if possible, to stimulate someone to thoughts of their own.
 #
 
-from canvas import database
-
 class lyrics_site:
 
 	# be patient
 	import time
 
-	# but don't wait for your neighbors
-	import multiprocessing
-
-	# and focus
-	branching_factor = 8
-
 	# set the canvas
+	from canvas import database
 	canvas = database.canvas()
 
 	def communicate(self, url):
@@ -41,21 +34,28 @@ class lyrics_site:
 
 			self.time.sleep(1)
 
-	def multitask(self, processes, process_name, process_target, process_args):
+	def multitask(self, processes, process_target, process_args):
 
-			process = self.multiprocessing.Process(name=process_name, target=process_target, args=process_args)
+		# don't wait for your neighbors
+		import multiprocessing
 
-			processes.append(process)
+		# and focus
+		branching_factor = 8
 
-			process.start()
+		# start
+		process = multiprocessing.Process(target=process_target, args=process_args).
+		process.start()
 
-			alive = [(process.name, process.is_alive()) for process in processes if process.is_alive()]
-			
-			while len(alive) >= self.branching_factor:
+		# keep track of your progress
+		processes.append(process)
+		alive = [process for process in processes if process.is_alive()]
 
-				alive = [(process.name, process.is_alive()) for process in processes if process.is_alive()]
+		# don't overextend
+		while len(alive) >= branching_factor:
 
-				self.time.sleep(1)
+			# pace yourself
+			alive = [process for process in processes if process.is_alive()]
+			self.time.sleep(1)
 
 class lyrics_net(lyrics_site): 
 
@@ -78,22 +78,9 @@ class lyrics_net(lyrics_site):
 
 		artist_data = ((artist_tag.text, self.url + artist_tag.get('href')) for artist_tag in artist_tags)
 
-		started = list()
-
 		for artist_name, artist_url in artist_data: 
 			
-			if artist_name in self.canvas.get_artists():
-
-				print "\nArtist:", artist_name, "\nstarted already."
-
-				started.append((artist_name, artist_url))
-				continue
-
-			self.multitask(artists, artist_name, self.honor, (artist_name, artist_url,))
-
-		for artist_name, artist_soup in started: 
-
-			self.multitask(artists, artist_name, self.honor, (artist_name, artist_url,))
+			self.multitask(artists, self.honor, (artist_name, artist_url,))
 
 	def honor(self, artist_name, artist_url):
 
@@ -105,23 +92,12 @@ class lyrics_net(lyrics_site):
 
 		album_labels = artist_soup.find_all('h3', {'class': 'artist-album-label'})
 
-		started = list()
-
 		for album_label in album_labels:
 
 			album_title = album_label.a.text
 			album_url   = self.url + album_label.a.get('href')
 
-			if album_title in self.canvas.get_albums(artist_name):
-
-				started.append((album_title, album_url))
-				continue
-
-			self.multitask(albums, album_title, self.admire, (artist_name, artist_url, album_title, album_url,))
-
-		for album_title, album_url in started: 
-
-			self.multitask(albums, album_title, self.admire, (artist_name, artist_url, album_title, album_url,))
+			self.multitask(albums, self.admire, (artist_name, artist_url, album_title, album_url,))
 
 	def admire(self, artist_name, artist_url, album_title, album_url):
 
@@ -146,7 +122,7 @@ class lyrics_net(lyrics_site):
 
 		for song_title, song_url in song_data:
 
-			self.multitask(songs, song_title, self.experience, (album_title, song_title, song_url,))
+			self.multitask(songs, self.experience, (album_title, song_title, song_url,))
 
 	def experience(self, album_title, song_title, song_url):
 
@@ -187,4 +163,3 @@ if __name__ == '__main__':
 	investigation = lyrics_net()
 
 	investigation.investigate()
-
