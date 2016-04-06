@@ -63,11 +63,11 @@ class canvas:
 
 		canvas, brush = self.prepare()
 
-		self.canvas.draw("""insert into artists (name)
-					   values (%s)
-					   on duplicate key update
-					   name = name""",
-					   [artist_name])
+		brush.execute("""insert into artists (name)
+					values (%s)
+					on duplicate key update
+					name = name""",
+					[artist_name])
 
 		canvas.commit()
 		canvas.close()
@@ -76,11 +76,11 @@ class canvas:
 
 		canvas, brush = self.prepare()
 
-		self.canvas.draw("""insert into albums (artist_name, title)
-					   values (%s, %s)
-					   on duplicate key update
-					   artist_name = artist_name, title = title""",
-					   [artist_name, album_title])
+		brush.execute("""insert into albums (artist_name, title)
+					values (%s, %s)
+					on duplicate key update
+					artist_name = artist_name, title = title""",
+					[artist_name, album_title])
 
 		canvas.commit()
 		canvas.close()
