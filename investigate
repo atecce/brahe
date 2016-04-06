@@ -43,7 +43,7 @@ class lyrics_site:
 		branching_factor = 8
 
 		# start
-		process = multiprocessing.Process(target=process_target, args=process_args).
+		process = multiprocessing.Process(target=process_target, args=process_args)
 		process.start()
 
 		# keep track of your progress
