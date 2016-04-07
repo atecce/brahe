@@ -13,6 +13,6 @@ class investigation(scrapy.Spider):
 
 	def parse(self, response):
 
-		links = response.xpath("//div[@id='page-letter-search']")
-
-		for link in links: print links
+		for suburl in response.xpath("//div[@id='page-letter-search']//@href").re("^/artists/[A-Z0]$"): 
+			
+			print suburl
