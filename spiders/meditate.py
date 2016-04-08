@@ -4,7 +4,7 @@ class meditate(scrapy.Spider):
 
 	name = 'meditate'
 
-	with open("urls/song_urls.txt") as f:
+	with open("urls/unique_song_urls.txt") as f:
 
 		start_urls = [line.rstrip() for line in f]
 

@@ -12,10 +12,8 @@ class experience(scrapy.Spider):
 
 	def parse(self, response):
 
-		print response.url
-
 		with open("urls/song_urls.txt", 'a') as f:
 
-			for suburl in response.xpath("//strong//@href").extract(): 
+			for suburl in response.xpath("//strong//@href").re("^/lyric/.*$"): 
 
 				f.write(response.urljoin(suburl) + '\n')

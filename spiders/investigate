@@ -6,3 +6,7 @@ scrapy runspider investigation.py
 scrapy runspider honor.py
 scrapy runspider admiration.py
 scrapy runspider experience.py
+
+sort urls/song_urls.txt | uniq > urls/unique_song_urls.txt
+
+scrapy runspider meditation.py 
