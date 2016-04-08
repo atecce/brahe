@@ -7,6 +7,6 @@ scrapy runspider spiders/honor.py
 scrapy runspider spiders/admiration.py
 scrapy runspider spiders/experience.py
 
-sort urls/song_urls.txt | uniq > urls/unique_song_urls.txt
+sort spiders/urls/song_urls.txt | uniq > spiders/urls/unique_song_urls.txt
 
 scrapy runspider spiders/meditation.py 
