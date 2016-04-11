@@ -1,18 +1,3 @@
-#!/usr/bin/env python
-#
-# I should not like my writing to spare other people the trouble of thinking. 
-# But, if possible, to stimulate someone to thoughts of their own.
-#
-
-class lyrics_site:
-
-	# be patient
-	import time
-
-	# set the canvas
-	from canvas import database
-	canvas = database.canvas()
-
 	def communicate(self, url):
 
 		from bs4 import BeautifulSoup
