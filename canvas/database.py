@@ -110,11 +110,11 @@ class canvas:
 
 		return artists
 
-	def get_albums(self, artist):
+	def get_albums(self):
 
 		canvas, brush = self.prepare()
 
-		brush.execute("select title from albums where artist_name=%s", (artist,))
+		brush.execute("select title from albums")
 
 		albums = [item[0] for item in brush.fetchall()]
 
@@ -122,14 +122,26 @@ class canvas:
 
 		return albums
 
-	def get_songs(self, album):
+	def get_songs(self):
 
 		canvas, brush = self.prepare()
 
-		brush.execute("select title from songs where album_title=%s", (album,))
+		brush.execute("select title from songs")
 
 		songs = [item[0] for item in brush.fetchall()]
 
 		canvas.close()
 
 		return songs
+
+	def get_lyrics(self):
+
+		canvas, brush = self.prepare()
+
+		brush.execute("select lyrics from songs")
+
+		lyrics = [item[0] for item in brush.fetchall()]
+
+		canvas.close()
+
+		return lyrics

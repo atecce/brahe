@@ -1,0 +1,21 @@
+#!/usr/bin/env python
+
+import nltk
+
+from canvas.database import canvas
+
+canvas = canvas()
+
+errors = list()
+
+for lyrics in canvas.get_lyrics():
+
+	try:
+
+		print nltk.word_tokenize(lyrics)
+
+	except:
+
+		errors.append(lyrics)
+
+print errors
