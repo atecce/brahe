@@ -104,7 +104,7 @@ class canvas:
 
 		brush.execute("select name from artists")
 
-		artists = set([item[0] for item in brush.fetchall()])
+		artists = [item[0] for item in brush.fetchall()]
 
 		canvas.close()
 
@@ -116,7 +116,7 @@ class canvas:
 
 		brush.execute("select title from albums where artist_name=%s", (artist,))
 
-		albums = set([item[0] for item in brush.fetchall()])
+		albums = [item[0] for item in brush.fetchall()]
 
 		canvas.close()
 
@@ -128,7 +128,7 @@ class canvas:
 
 		brush.execute("select title from songs where album_title=%s", (album,))
 
-		songs = set([item[0] for item in brush.fetchall()])
+		songs = [item[0] for item in brush.fetchall()]
 
 		canvas.close()
 

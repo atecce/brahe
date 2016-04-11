@@ -78,9 +78,17 @@ class lyrics_net(lyrics_site):
 
 		artist_data = ((artist_tag.text, self.url + artist_tag.get('href')) for artist_tag in artist_tags)
 
+		last_artist = self.canvas.get_artists()[-1]
+
+		caught_up = bool()
+
 		for artist_name, artist_url in artist_data: 
+
+			if artist_name.encode('utf-8') == last_artist: caught_up = True
+
+			if caught_up: self.multitask(artists, self.honor, (artist_name, artist_url,))
 			
-			self.multitask(artists, self.honor, (artist_name, artist_url,))
+			else: print artist_name
 
 	def honor(self, artist_name, artist_url):
 
