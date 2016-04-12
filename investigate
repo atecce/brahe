@@ -4,10 +4,16 @@
 # But, if possible, to stimulate someone to thoughts of their own.
 #
 
-class lyrics_site:	
+# don't wait for your neighbors
+import multiprocessing
 
-	# be patient
-	import time
+# but share resources
+import threading
+
+# and be patient
+import time
+
+class lyrics_site:	
 
 	# set the canvas
 	from canvas import database
@@ -32,32 +38,17 @@ class lyrics_site:
 			# give communication a chance
 			except requests.exceptions.ConnectionError: pass
 
-			self.time.sleep(1)
-
-	def multitask(self, processes, process_target, process_args):
-
-		# don't wait for your neighbors
-		import multiprocessing
-
-		# and focus
-		branching_factor = 8
-
-		# start
-		process = multiprocessing.Process(target=process_target, args=process_args)
-		process.start()
-
-		# keep track of your progress
-		processes.append(process)
-		alive = [process for process in processes if process.is_alive()]
-
-		# don't overextend
-		while len(alive) >= branching_factor:
-
-			# pace yourself
-			alive = [process for process in processes if process.is_alive()]
-			self.time.sleep(1)
+			time.sleep(1)
 
 class lyrics_net(lyrics_site): 
+
+	processes = list()
+
+	artists = list()
+	albums  = list()
+	songs   = list()
+
+	branching_factor = 8
 
 	url = 'http://www.lyrics.net/'
 
@@ -78,25 +69,22 @@ class lyrics_net(lyrics_site):
 
 		artist_data = ((artist_tag.text, self.url + artist_tag.get('href')) for artist_tag in artist_tags)
 
-		last_artist = self.canvas.get_artists()[-1]
-
-		caught_up = bool()
-
 		for artist_name, artist_url in artist_data: 
 
-			if artist_name.encode('utf-8') == last_artist: caught_up = True
+			process = multiprocessing.Process(target=self.honor, name=artist_name, args=(artist_name, artist_url,))
 
-			if caught_up: self.multitask(artists, self.honor, (artist_name, artist_url,))
-			
-			else: print artist_name
+			process.start()
+
+			self.processes.append(process)
+			self.artists.append(process)
+
+			if len(self.processes) >= self.branching_factor: self.artists.pop(0).join()
 
 	def honor(self, artist_name, artist_url):
 
 		artist_soup = self.communicate(artist_url)
 
 		self.canvas.add_artist(artist_name)
-
-		print "\nArtist:", artist_name, "\ninserted"
 
 		album_labels = artist_soup.find_all('h3', {'class': 'artist-album-label'})
 
@@ -105,7 +93,14 @@ class lyrics_net(lyrics_site):
 			album_title = album_label.a.text
 			album_url   = self.url + album_label.a.get('href')
 
-			self.multitask(albums, self.admire, (artist_name, artist_url, album_title, album_url,))
+			process = multiprocessing.Process(target=self.admire, name=album_title, args=(artist_name, artist_url, album_title, album_url,))
+
+			process.start()
+
+			self.processes.append(process)
+			self.albums.append(process)
+
+			if len(self.processes) >= self.branching_factor: self.albums.pop(0).join()
 
 	def admire(self, artist_name, artist_url, album_title, album_url):
 
@@ -114,15 +109,11 @@ class lyrics_net(lyrics_site):
 		# TODO
 		if album_soup.find_all('body', {'id': 's4-page-homepage'}): 
 
-			print "\tArtist:", artist_name, "\n\tAlbum:", album_title, "\n\tredirects to home page\n"
-
 			with open('home_page_albums.txt', 'a') as f: f.write(artist_name.encode('utf-8') + ', ' + album_title.encode('utf-8') +'\n')
 
 			return
 
 		self.canvas.add_album(artist_name, album_title)
-
-		print "\n\tArtist:", artist_name, "\n\tAlbum:", album_title, "\n\tinserted"
 
 		song_data = ((song_tag.a.text, self.url + song_tag.a.get('href'))  \
 			     for song_tag in album_soup.find_all('strong') 	   \
@@ -130,7 +121,11 @@ class lyrics_net(lyrics_site):
 
 		for song_title, song_url in song_data:
 
-			self.multitask(songs, self.experience, (album_title, song_title, song_url,))
+			process = multiprocessing.Process(target=self.experience, name=song_title, args=(album_title, song_title, song_url,))
+			process.start()
+
+			self.processes.append(process)
+			self.songs.append(process)
 
 	def experience(self, album_title, song_title, song_url):
 
@@ -139,8 +134,6 @@ class lyrics_net(lyrics_site):
 		# TODO
 		if song_soup.find_all('body', {'id': 's4-page-homepage'}): 
 			
-			print "\n\t\tSong:", song_title, "\n\t\tAlbum:", album_title, "\n\t\tredirects to home page\n"
-
 			with open('home_page_songs.txt','a') as f: f.write(album_title.encode('utf-8') + ', ' + song_title.encode('utf-8') + '\n')
 
 			return
@@ -151,23 +144,36 @@ class lyrics_net(lyrics_site):
 
 		self.canvas.add_song(album_title, song_title, lyrics)
 
-		print "\t\tSong:", song_title, "\n\t\tAlbum:", album_title, "\n\t\tinserted\n"
-
-		print
-
-		for line in lyrics.splitlines(): print '\t\t\t', line
-
-		print
-
 if __name__ == '__main__':
-
-	artists = list()
-	albums  = list()
-	songs   = list()
 
 	with open('home_page_albums.txt', 'w') as f: f.write('')
 	with open('home_page_songs.txt', 'w') as f:  f.write('')
 
 	investigation = lyrics_net()
 
-	investigation.investigate()
+	root = threading.Thread(target=investigation.investigate)
+	root.start()
+
+	while True:
+
+		for process in investigation.processes: print process
+		
+		print len(investigation.processes)
+		print
+
+		for artist in investigation.artists: print '\t', artist
+
+		print '\t', len(investigation.artists)
+		print
+		
+		for album in investigation.albums: print '\t\t', album
+
+		print '\t\t', len(investigation.albums)
+		print
+
+		for song in investigation.songs: print '\t\t\t', song
+
+		print '\t\t\t', len(investigation.songs)
+		print
+
+		time.sleep(1)

@@ -8,7 +8,7 @@ class canvas:
 
 	try: 
 
-		brush.execute("create database lyrics_net")
+		brush.execute("create database canvas")
 		canvas.close()
 
 	except: canvas.close()
@@ -54,7 +54,7 @@ class canvas:
 
 	def prepare(self):
 
-		canvas = self.MySQLdb.connect('localhost', 'root', db='lyrics_net')
+		canvas = self.MySQLdb.connect('localhost', 'root', db='canvas')
 		brush  = canvas.cursor()
 
 		return canvas, brush
