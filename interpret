@@ -1,30 +1,7 @@
 #!/usr/bin/env python
 
-import nltk
-
 from canvas.database import canvas
 
 canvas = canvas()
 
-errors = list()
-
-tokens = dict()
-
-for lyrics in canvas.get_lyrics():
-
-	try:
-
-		for token in nltk.word_tokenize(lyrics):
-
-			if token in tokens: tokens[token] += 1
-
-			else: tokens[token] = 1
-
-			print token, tokens[token]
-			print len(tokens)
-
-	except UnicodeDecodeError:
-
-		errors.append(lyrics)
-
-print len(errors)
+canvas.set_work()

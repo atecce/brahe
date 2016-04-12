@@ -3,6 +3,8 @@ class canvas:
 	# set the canvas
 	import MySQLdb
 
+	import nltk
+
 	canvas = MySQLdb.connect('localhost', 'root')
 	brush  = canvas.cursor()
 
@@ -145,3 +147,33 @@ class canvas:
 		canvas.close()
 
 		return lyrics
+
+	def set_work(self): 
+
+		canvas, brush = self.prepare()
+
+		brush.execute("select title, lyrics from songs")
+
+		song_data = ((item[0], item[1]) for item in brush.fetchall())
+
+		for song, lyrics in song_data:
+
+			print song
+
+			brush.execute("""create table if not exists `%s` ( 	    	       
+										       
+						token varchar(255) not null,
+
+						primary key (token)
+						
+						)""", [song])
+
+			for token in self.nltk.word_tokenize(lyrics.decode('utf-8')): 
+				
+				brush.execute("""insert into `%s` (token) 
+							values (%s) 
+							on duplicate key update
+							token = token
+							""", [song, token])
+
+		canvas.close()

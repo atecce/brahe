@@ -42,14 +42,17 @@ class lyrics_site:
 
 class lyrics_net(lyrics_site): 
 
+	# keep track of everything
 	processes = list()
 
 	artists = list()
 	albums  = list()
 	songs   = list()
 
+	# multitask
 	branching_factor = 8
 
+	# know where you are
 	url = 'http://www.lyrics.net/'
 
 	def investigate(self):
@@ -156,22 +159,22 @@ if __name__ == '__main__':
 
 	while True:
 
-		for process in investigation.processes: print process
+		for process in investigation.processes: print process, process.is_alive()
 		
 		print len(investigation.processes)
 		print
 
-		for artist in investigation.artists: print '\t', artist
+		for artist in investigation.artists: print '\t', artist, artist.is_alive()
 
 		print '\t', len(investigation.artists)
 		print
 		
-		for album in investigation.albums: print '\t\t', album
+		for album in investigation.albums: print '\t\t', album, album.is_alive()
 
 		print '\t\t', len(investigation.albums)
 		print
 
-		for song in investigation.songs: print '\t\t\t', song
+		for song in investigation.songs: print '\t\t\t', song, song.is_alive()
 
 		print '\t\t\t', len(investigation.songs)
 		print
