@@ -166,11 +166,11 @@ class lyrics_net(lyrics_site):
 		# add song to canvas
 		self.canvas.add_song(album_title, song_title, lyrics)
 
-def display(sibling, process):
+def display(level, process):
 
-	if   sibling == 'artists': print '\t',
-	elif sibling == 'albums':  print '\t\t',
-	elif sibling == 'songs':   print '\t\t\t',
+	if   level == 'artists': print '\t',
+	elif level == 'albums':  print '\t\t',
+	elif level == 'songs':   print '\t\t\t',
 
 	try: 			   print process, process.is_alive()
 	except UnicodeDecodeError: print process.decode('utf-8'), process.is_alive()
@@ -190,24 +190,23 @@ if __name__ == '__main__':
 	# keep track of it's progress
 	while True:
 
+		# keep track of all the processes
 		for process in investigation.processes: display(None, process)
 
 		print len(investigation.processes)
 		print
 
-		for artist in investigation.siblings['artists']: display('artists', artist)
+		# keep track by level of the tree
+		for level in 'artists', 'albums', 'songs':
 
-		print '\t', len(investigation.siblings['artists'])
-		print
-		
-		for album in investigation.siblings['albums']: display('albums', album)
+			for sibling in investigation.siblings[level]: display(level, sibling)
 
-		print '\t\t', len(investigation.siblings['albums'])
-		print
+			if   level == 'artists': print '\t',
+			elif level == 'albums':  print '\t\t',
+			elif level == 'songs':   print '\t\t\t',
 
-		for song in investigation.siblings['songs']: display('songs', song)
-
-		print '\t\t\t', len(investigation.siblings['songs'])
-		print
-
+			print len(investigation.siblings[level])
+			print
+			
+		# wait
 		time.sleep(.5)
