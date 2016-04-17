@@ -4,6 +4,8 @@
 # But, if possible, to stimulate someone to thoughts of their own.
 #
 
+import sys
+
 # don't wait for your neighbors
 import multiprocessing
 
@@ -12,6 +14,9 @@ import threading
 
 # and be patient
 import time
+
+# respond to negative feedback
+import signal
 
 class lyrics_site:	
 
@@ -57,124 +62,166 @@ class lyrics_net(lyrics_site):
 
 	def investigate(self):
 
+		# need this for interpretation
 		import re
 
+		# get the soup
 		soup = self.communicate(self.url)
 
+		# extract alphabet urls
 		alphabet_urls = (self.url + re.match('^/artists/[A-Z0]$', link.get('href')).group(0) + '/99999' \
 				 for link in soup.find_all('div', {'id': 'page-letter-search'})[0]      	\
 				          if re.match('^/artists/[A-Z0]$', str(link.get('href'))))
 
+		# extract artist tags
 		artist_tags = (trace.strong.a 		  		     		  \
 			       for alphabet_url in alphabet_urls 	     	 	  \
 			       for trace in self.communicate(alphabet_url).find_all('tr') \
 			       		 if trace.strong)
 
+		# get artist data
 		artist_data = ((artist_tag.text, self.url + artist_tag.get('href')) for artist_tag in artist_tags)
 
+		# for each artist
 		for artist_name, artist_url in artist_data: 
 
+			# fork the process
 			process = multiprocessing.Process(target=self.honor, name=artist_name, args=(artist_name, artist_url,))
-
 			process.start()
 
+			# track the processes
 			self.processes.append(process)
 			self.artists.append(process)
 
-			if len(self.processes) >= self.branching_factor: self.artists.pop(0).join()
+			# pace yourself
+			if len(self.artists) >= self.branching_factor: self.artists.pop(0).join()
 
 	def honor(self, artist_name, artist_url):
 
+		# get the soup
 		artist_soup = self.communicate(artist_url)
 
+		# add the artist to the canvas
 		self.canvas.add_artist(artist_name)
 
+		# get the album labels
 		album_labels = artist_soup.find_all('h3', {'class': 'artist-album-label'})
 
+		# for each album label
 		for album_label in album_labels:
 
+			# extract the data
 			album_title = album_label.a.text
 			album_url   = self.url + album_label.a.get('href')
 
-			process = multiprocessing.Process(target=self.admire, name=album_title, args=(artist_name, artist_url, album_title, album_url,))
-
+			# fork the process
+			process = multiprocessing.Process(target=self.experience, name=album_title, args=(artist_name, artist_url, album_title, album_url,))
 			process.start()
 
+			# track the process
 			self.processes.append(process)
 			self.albums.append(process)
 
-			if len(self.processes) >= self.branching_factor: self.albums.pop(0).join()
+			# pace yourself
+			if len(self.albums) >= self.branching_factor: self.albums.pop(0).join()
 
-	def admire(self, artist_name, artist_url, album_title, album_url):
+	def experience(self, artist_name, artist_url, album_title, album_url):
 
+		# get the soup
 		album_soup = self.communicate(album_url)
 
-		# TODO
+		# TODO handle the redirects
 		if album_soup.find_all('body', {'id': 's4-page-homepage'}): 
 
+			# keep track of the redirects
 			with open('home_page_albums.txt', 'a') as f: f.write(artist_name.encode('utf-8') + ', ' + album_title.encode('utf-8') +'\n')
 
 			return
 
+		# add the album to the canvas
 		self.canvas.add_album(artist_name, album_title)
 
+		# extract the song data
 		song_data = ((song_tag.a.text, self.url + song_tag.a.get('href'))  \
 			     for song_tag in album_soup.find_all('strong') 	   \
 			     		  if song_tag.a)
 
+		# for each song
 		for song_title, song_url in song_data:
 
-			process = multiprocessing.Process(target=self.experience, name=song_title, args=(album_title, song_title, song_url,))
+			# fork process
+			process = multiprocessing.Process(target=self.meditate, name=song_title, args=(album_title, song_title, song_url,))
 			process.start()
 
+			# track the process
 			self.processes.append(process)
 			self.songs.append(process)
 
-	def experience(self, album_title, song_title, song_url):
+			# pace yourself
+			if len(self.songs) >= self.branching_factor: self.songs.pop(0).join()
 
+	def meditate(self, album_title, song_title, song_url):
+
+		# make some soup
 		song_soup = self.communicate(song_url)
 
-		# TODO
+		# TODO handle redirects
 		if song_soup.find_all('body', {'id': 's4-page-homepage'}): 
 			
+			# track redirects
 			with open('home_page_songs.txt','a') as f: f.write(album_title.encode('utf-8') + ', ' + song_title.encode('utf-8') + '\n')
 
 			return
 
+		# sometimes there's nothing to meditate on
 		try: lyrics = song_soup.find_all('pre', {'id': 'lyric-body-text'})[0].text
-
 		except IndexError: return
 
+		# add song to canvas
 		self.canvas.add_song(album_title, song_title, lyrics)
 
 if __name__ == '__main__':
 
+	# setup redirect trackers
 	with open('home_page_albums.txt', 'w') as f: f.write('')
 	with open('home_page_songs.txt', 'w') as f:  f.write('')
 
+	# start the investigation
 	investigation = lyrics_net()
-
 	root = threading.Thread(target=investigation.investigate)
 	root.start()
 
+	# keep track of it's progress
 	while True:
 
-		for process in investigation.processes: print process, process.is_alive()
+		for process in investigation.processes: 
+
+			try: 			   print process, process.is_alive()
+			except UnicodeDecodeError: print process.decode('utf-8'), process.is_alive()
 		
 		print len(investigation.processes)
 		print
 
-		for artist in investigation.artists: print '\t', artist, artist.is_alive()
+		for artist in investigation.artists:
+
+			try: 			   print '\t', artist, artist.is_alive()
+			except UnicodeDecodeError: print '\t', artist.decode('utf-8'), artist.is_alive()
 
 		print '\t', len(investigation.artists)
 		print
 		
-		for album in investigation.albums: print '\t\t', album, album.is_alive()
+		for album in investigation.albums:
+
+			try: 			   print '\t\t', album, album.is_alive()
+			except UnicodeDecodeError: print '\t\t', album.decode('utf-8'), album.is_alive()
 
 		print '\t\t', len(investigation.albums)
 		print
 
-		for song in investigation.songs: print '\t\t\t', song, song.is_alive()
+		for song in investigation.songs:
+
+			try: 			   print '\t\t\t', process, song.is_alive()
+			except UnicodeDecodeError: print '\t\t\t', song.decode('utf-8'), song.is_alive()
 
 		print '\t\t\t', len(investigation.songs)
 		print
