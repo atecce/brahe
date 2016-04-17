@@ -45,14 +45,27 @@ class lyrics_site:
 
 			time.sleep(1)
 
+	def multitask(self, level, function, process_name, process_args):
+
+		# fork the process
+		process = multiprocessing.Process(target=function, name=process_name, args=process_args)
+		process.start()
+
+		# track the processes
+		self.processes.append(process)
+		self.siblings[level].append(process)
+
+		# pace yourself
+		if len(self.siblings[level]) >= self.branching_factor: self.siblings[level].pop(0).join()
+
 class lyrics_net(lyrics_site): 
 
 	# keep track of everything
 	processes = list()
 
-	artists = list()
-	albums  = list()
-	songs   = list()
+	siblings = {'artists': list(),
+		    'albums':  list(),
+		    'songs':   list()}
 
 	# multitask
 	branching_factor = 8
@@ -85,16 +98,7 @@ class lyrics_net(lyrics_site):
 		# for each artist
 		for artist_name, artist_url in artist_data: 
 
-			# fork the process
-			process = multiprocessing.Process(target=self.honor, name=artist_name, args=(artist_name, artist_url,))
-			process.start()
-
-			# track the processes
-			self.processes.append(process)
-			self.artists.append(process)
-
-			# pace yourself
-			if len(self.artists) >= self.branching_factor: self.artists.pop(0).join()
+			self.multitask('artists', self.honor, artist_name, (artist_name, artist_url,))
 
 	def honor(self, artist_name, artist_url):
 
@@ -114,16 +118,7 @@ class lyrics_net(lyrics_site):
 			album_title = album_label.a.text
 			album_url   = self.url + album_label.a.get('href')
 
-			# fork the process
-			process = multiprocessing.Process(target=self.experience, name=album_title, args=(artist_name, artist_url, album_title, album_url,))
-			process.start()
-
-			# track the process
-			self.processes.append(process)
-			self.albums.append(process)
-
-			# pace yourself
-			if len(self.albums) >= self.branching_factor: self.albums.pop(0).join()
+			self.multitask('albums', self.experience, album_title, (artist_name, artist_url, album_title, album_url,))
 
 	def experience(self, artist_name, artist_url, album_title, album_url):
 
@@ -149,16 +144,7 @@ class lyrics_net(lyrics_site):
 		# for each song
 		for song_title, song_url in song_data:
 
-			# fork process
-			process = multiprocessing.Process(target=self.meditate, name=song_title, args=(album_title, song_title, song_url,))
-			process.start()
-
-			# track the process
-			self.processes.append(process)
-			self.songs.append(process)
-
-			# pace yourself
-			if len(self.songs) >= self.branching_factor: self.songs.pop(0).join()
+			self.multitask('songs', self.meditate, song_title, (album_title, song_title, song_url,))
 
 	def meditate(self, album_title, song_title, song_url):
 
@@ -180,6 +166,16 @@ class lyrics_net(lyrics_site):
 		# add song to canvas
 		self.canvas.add_song(album_title, song_title, lyrics)
 
+def display(sibling, process):
+
+	if   sibling == 'artists': print '\t',
+	elif sibling == 'albums':  print '\t\t',
+	elif sibling == 'songs':   print '\t\t\t',
+
+	try: 			   print process, process.is_alive()
+	except UnicodeDecodeError: print process.decode('utf-8'), process.is_alive()
+	except UnicodeEncodeError: print process.encode('ascii'), process.is_alive()
+
 if __name__ == '__main__':
 
 	# setup redirect trackers
@@ -194,36 +190,24 @@ if __name__ == '__main__':
 	# keep track of it's progress
 	while True:
 
-		for process in investigation.processes: 
+		for process in investigation.processes: display(None, process)
 
-			try: 			   print process, process.is_alive()
-			except UnicodeDecodeError: print process.decode('utf-8'), process.is_alive()
-		
 		print len(investigation.processes)
 		print
 
-		for artist in investigation.artists:
+		for artist in investigation.siblings['artists']: display('artists', artist)
 
-			try: 			   print '\t', artist, artist.is_alive()
-			except UnicodeDecodeError: print '\t', artist.decode('utf-8'), artist.is_alive()
-
-		print '\t', len(investigation.artists)
+		print '\t', len(investigation.siblings['artists'])
 		print
 		
-		for album in investigation.albums:
+		for album in investigation.siblings['albums']: display('albums', album)
 
-			try: 			   print '\t\t', album, album.is_alive()
-			except UnicodeDecodeError: print '\t\t', album.decode('utf-8'), album.is_alive()
-
-		print '\t\t', len(investigation.albums)
+		print '\t\t', len(investigation.siblings['albums'])
 		print
 
-		for song in investigation.songs:
+		for song in investigation.siblings['songs']: display('songs', song)
 
-			try: 			   print '\t\t\t', process, song.is_alive()
-			except UnicodeDecodeError: print '\t\t\t', song.decode('utf-8'), song.is_alive()
-
-		print '\t\t\t', len(investigation.songs)
+		print '\t\t\t', len(investigation.siblings['songs'])
 		print
 
-		time.sleep(1)
+		time.sleep(.5)
