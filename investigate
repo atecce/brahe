@@ -48,9 +48,12 @@ class lyrics_site:
 		self.siblings[level].append(process)
 
 		# pace yourself
-		while len(self.siblings[level]) >= 8: self.siblings[level].pop(0).join()
-
-		for process in self.processes: print process
+		while len(self.siblings[level]) >= 8: 
+			
+			print "Pruning", level
+			print len(self.siblings[level])
+			print len(self.processes)
+			self.siblings[level].pop(0).join()
 
 class lyrics_net(lyrics_site): 
 
