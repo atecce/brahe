@@ -4,19 +4,11 @@
 # But, if possible, to stimulate someone to thoughts of their own.
 #
 
-import sys
-
 # don't wait for your neighbors
-import multiprocessing
+from multiprocessing import Process
 
-# but share resources
-import threading
-
-# and be patient
+# but be patient
 import time
-
-# respond to negative feedback
-import signal
 
 class lyrics_site:	
 
@@ -48,7 +40,7 @@ class lyrics_site:
 	def multitask(self, level, function, process_name, process_args):
 
 		# fork the process
-		process = multiprocessing.Process(target=function, name=process_name, args=process_args)
+		process = Process(target=function, name=process_name, args=process_args)
 		process.start()
 
 		# track the processes
@@ -56,19 +48,18 @@ class lyrics_site:
 		self.siblings[level].append(process)
 
 		# pace yourself
-		if len(self.siblings[level]) >= self.branching_factor: self.siblings[level].pop(0).join()
+		while len(self.siblings[level]) >= 8: self.siblings[level].pop(0).join()
+
+		for process in self.processes: print process
 
 class lyrics_net(lyrics_site): 
 
 	# keep track of everything
 	processes = list()
 
-	siblings = {'artists': list(),
-		    'albums':  list(),
-		    'songs':   list()}
-
-	# multitask
-	branching_factor = 8
+	siblings = {"artists": list(),
+		    "albums":  list(),
+		    "songs":   list()}
 
 	# know where you are
 	url = 'http://www.lyrics.net/'
@@ -166,16 +157,6 @@ class lyrics_net(lyrics_site):
 		# add song to canvas
 		self.canvas.add_song(album_title, song_title, lyrics)
 
-def display(level, process):
-
-	if   level == 'artists': print '\t',
-	elif level == 'albums':  print '\t\t',
-	elif level == 'songs':   print '\t\t\t',
-
-	try: 			   print process, process.is_alive()
-	except UnicodeDecodeError: print process.decode('utf-8'), process.is_alive()
-	except UnicodeEncodeError: print process.encode('ascii'), process.is_alive()
-
 if __name__ == '__main__':
 
 	# setup redirect trackers
@@ -184,29 +165,4 @@ if __name__ == '__main__':
 
 	# start the investigation
 	investigation = lyrics_net()
-	root = threading.Thread(target=investigation.investigate)
-	root.start()
-
-	# keep track of it's progress
-	while True:
-
-		# keep track of all the processes
-		for process in investigation.processes: display(None, process)
-
-		print len(investigation.processes)
-		print
-
-		# keep track by level of the tree
-		for level in 'artists', 'albums', 'songs':
-
-			for sibling in investigation.siblings[level]: display(level, sibling)
-
-			if   level == 'artists': print '\t',
-			elif level == 'albums':  print '\t\t',
-			elif level == 'songs':   print '\t\t\t',
-
-			print len(investigation.siblings[level])
-			print
-			
-		# wait
-		time.sleep(.5)
+	investigation.investigate()
