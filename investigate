@@ -72,6 +72,10 @@ class lyrics_net(lyrics_site):
 		# need this for interpretation
 		import re
 
+		# try not to repeat yourself
+		last_artist = self.canvas.get_artists()[-10]
+		caught_up = bool()
+
 		# get the soup
 		soup = self.communicate(self.url)
 
@@ -91,6 +95,14 @@ class lyrics_net(lyrics_site):
 
 		# for each artist
 		for artist_name, artist_url in artist_data: 
+
+			if artist_name == last_artist: caught_up = True
+
+			if not caught_up: 
+
+				print artist_name
+				
+				continue
 
 			self.multitask('artists', self.honor, artist_name, (artist_name, artist_url,))
 
