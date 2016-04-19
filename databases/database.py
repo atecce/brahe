@@ -1,10 +1,8 @@
+import MySQLdb
+
 class canvas:
 
 	# set the canvas
-	import MySQLdb
-
-	import nltk
-
 	canvas = MySQLdb.connect('localhost', 'root')
 	brush  = canvas.cursor()
 
@@ -56,7 +54,7 @@ class canvas:
 
 	def prepare(self):
 
-		canvas = self.MySQLdb.connect('localhost', 'root', db='canvas')
+		canvas = MySQLdb.connect('localhost', 'root', db='canvas')
 		brush  = canvas.cursor()
 
 		return canvas, brush
@@ -148,32 +146,61 @@ class canvas:
 
 		return lyrics
 
+class text:
+
+	import nltk
+
+	canvas = canvas()
+
+	text = MySQLdb.connect('localhost', 'root')
+	mind = text.cursor()
+
+	try: 
+
+		mind.execute("create database text")
+		text.close()
+
+	except: text.close()
+
+	def prepare(self):
+
+		text = MySQLdb.connect('localhost', 'root', db='text')
+		mind = text.cursor()
+
+		return text, mind
+
 	def set_work(self): 
 
-		canvas, brush = self.prepare()
+		# get the work form the canvas
+		canvas, brush = self.canvas.prepare()
 
 		brush.execute("select title, lyrics from songs")
 
 		song_data = ((item[0], item[1]) for item in brush.fetchall())
 
+		canvas.close()
+
+		# interpret it
+		text, mind = self.prepare()
+
 		for song, lyrics in song_data:
 
 			print song
 
-			brush.execute("""create table if not exists `%s` ( 	    	       
+			mind.execute("""create table if not exists `%s` ( 	    	       
+
+						id int not null auto_increment,
 										       
 						token varchar(255) not null,
 
-						primary key (token)
+						primary key (id)
 						
 						)""", [song])
 
 			for token in self.nltk.word_tokenize(lyrics.decode('utf-8')): 
 				
-				brush.execute("""insert into `%s` (token) 
-							values (%s) 
-							on duplicate key update
-							token = token
-							""", [song, token])
+				mind.execute("""insert into `%s` (token) 
+						       values (%s) 
+						       """, [song, token])
 
-		canvas.close()
+		text.close()
