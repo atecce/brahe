@@ -1,5 +1,7 @@
 import MySQLdb
 
+from _mysql_exceptions import OperationalError
+
 class canvas:
 
 	# set the canvas
@@ -162,6 +164,22 @@ class text:
 
 	except: text.close()
 
+	def __init__(self):
+
+		# sketch the outline
+		text, mind = self.prepare()
+
+		mind.execute("""create table if not exists tokens (
+									  
+				       token varchar(255) not null, 	  
+
+				       occurences int not null,
+	  
+				       primary key (token) 	
+				       			  
+				       )""")
+		text.close()
+
 	def prepare(self):
 
 		text = MySQLdb.connect('localhost', 'root', db='text')
@@ -187,20 +205,30 @@ class text:
 
 			print song
 
-			mind.execute("""create table if not exists `%s` ( 	    	       
+			try:
 
-						id int not null auto_increment,
+				mind.execute("""create table if not exists `%s` ( 	    	       
+
+						       id int not null auto_increment,
 										       
-						token varchar(255) not null,
+						       token varchar(255) not null,
 
-						primary key (id)
-						
-						)""", [song])
+						       primary key (id)
+						       
+						       )""", [song])
 
-			for token in self.nltk.word_tokenize(lyrics.decode('utf-8')): 
-				
-				mind.execute("""insert into `%s` (token) 
-						       values (%s) 
-						       """, [song, token])
+				for token in self.nltk.word_tokenize(lyrics.decode('utf-8')): 
+					
+					mind.execute("""insert into `%s` (token) 
+							       values (%s) 
+							       """, [song, token])
+
+					mind.execute("""insert into tokens (token, occurences)
+							       values (%s, %d)
+							       on duplicate key update 
+							       occurences = occurences+1
+							       """, [token, 1]) 
+
+			except: continue
 
 		text.close()

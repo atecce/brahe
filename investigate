@@ -73,7 +73,7 @@ class lyrics_net(lyrics_site):
 		import re
 
 		# try not to repeat yourself
-		last_artist = self.canvas.get_artists()[-10]
+		last_artist = self.canvas.get_artists()[-20]
 		caught_up = bool()
 
 		# get the soup
