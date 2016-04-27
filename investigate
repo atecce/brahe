@@ -73,8 +73,16 @@ class lyrics_net(lyrics_site):
 		import re
 
 		# try not to repeat yourself
-		last_artist = self.canvas.get_artists()[-20]
-		caught_up = bool()
+		try:
+
+			last_artist = self.canvas.get_artists()[-20]
+			caught_up = bool()
+
+		# make sure you've actually started
+		except IndexError:
+
+			last_artist = None
+			caught_up   = True
 
 		# get the soup
 		soup = self.communicate(self.url)
