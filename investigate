@@ -53,6 +53,7 @@ class lyrics_site:
 			print "Pruning", level
 			print len(self.siblings[level])
 			print len(self.processes)
+			print
 			self.siblings[level].pop(0).join()
 
 class lyrics_net(lyrics_site): 
@@ -103,14 +104,13 @@ class lyrics_net(lyrics_site):
 
 		# for each artist
 		for artist_name, artist_url in artist_data: 
+				
+			print artist_name
+			print
 
 			if artist_name == last_artist: caught_up = True
 
-			if not caught_up: 
-
-				print artist_name
-				
-				continue
+			if not caught_up: continue
 
 			self.multitask('artists', self.honor, artist_name, (artist_name, artist_url,))
 
@@ -131,6 +131,9 @@ class lyrics_net(lyrics_site):
 			# extract the data
 			album_title = album_label.a.text
 			album_url   = self.url + album_label.a.get('href')
+
+			print '\t', album_title
+			print
 
 			self.multitask('albums', self.experience, album_title, (artist_name, artist_url, album_title, album_url,))
 
@@ -158,6 +161,9 @@ class lyrics_net(lyrics_site):
 		# for each song
 		for song_title, song_url in song_data:
 
+			print '\t\t', song_title
+			print
+
 			self.multitask('songs', self.meditate, song_title, (album_title, song_title, song_url,))
 
 	def meditate(self, album_title, song_title, song_url):
@@ -174,7 +180,14 @@ class lyrics_net(lyrics_site):
 			return
 
 		# sometimes there's nothing to meditate on
-		try: lyrics = song_soup.find_all('pre', {'id': 'lyric-body-text'})[0].text
+		try: 
+
+			lyrics = song_soup.find_all('pre', {'id': 'lyric-body-text'})[0].text
+
+			for line in lyrics.splitlines(): print '\t\t\t', line
+
+			print
+
 		except IndexError: return
 
 		# add song to canvas
