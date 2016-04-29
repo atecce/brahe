@@ -51,7 +51,6 @@ class lyrics_site:
 		while len(self.siblings[level]) >= 8: 
 			
 			print "Pruning", level
-			print len(self.siblings[level])
 			print len(self.processes)
 			print
 			self.siblings[level].pop(0).join()
@@ -175,7 +174,9 @@ class lyrics_net(lyrics_site):
 		if song_soup.find_all('body', {'id': 's4-page-homepage'}): 
 			
 			# track redirects
-			with open('home_page_songs.txt','a') as f: f.write(album_title.encode('utf-8') + ', ' + song_title.encode('utf-8') + '\n')
+			with open('home_page_songs.txt','a') as f: 
+
+				f.write(album_title.encode('utf-8') + ', ' + song_title.encode('utf-8') + '\n')
 
 			return
 
