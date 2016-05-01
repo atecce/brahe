@@ -13,8 +13,8 @@ import time
 class lyrics_site:	
 
 	# set the canvas
-	from databases import database
-	canvas = database.canvas()
+	from db import canvas
+	canvas = canvas()
 
 	def communicate(self, url):
 
