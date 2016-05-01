@@ -21,22 +21,22 @@ class canvas:
 
 		brush.execute("""create table if not exists artists (
 									  
-					name varchar(255) not null, 	  
+					name text not null, 	  
 								  
 					primary key (name))""")
 
 		brush.execute("""create table if not exists albums ( 		
 										
-					title 	    varchar(255) not null, 			
-					artist_name varchar(255) not null,  		
+					title 	    text not null, 			
+					artist_name text not null,  		
 										
 					primary key (title, artist_name), 				
 					foreign key (artist_name) references artists (name))""")
 
 		brush.execute("""create table if not exists songs ( 	    	       
 									       
-					title 	    varchar(255) not null, 	    	       
-					album_title varchar(255) not null, 	    	       
+					title 	    text not null, 	    	       
+					album_title text not null, 	    	       
 					lyrics 	    text, 			    	       
 									       
 					primary key (album_title, title),
