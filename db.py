@@ -22,38 +22,30 @@ class canvas:
 									  
 					name varchar(255) not null, 	  
 								  
-					primary key (name) 		  
-								  
-					)""")
+					primary key (name))""")
 
 		brush.execute("""create table if not exists albums ( 		
 										
-					title varchar(255) not null, 			
-											
+					title 	    varchar(255) not null, 			
 					artist_name varchar(255) not null,  		
 										
 					primary key (title, artist_name), 				
-					foreign key (artist_name) references artists (name) 
-										
-					)""")
+					foreign key (artist_name) references artists (name))""")
 
 		brush.execute("""create table if not exists songs ( 	    	       
 									       
-					title varchar(255) not null, 	    	       
-										       
+					title 	    varchar(255) not null, 	    	       
 					album_title varchar(255) not null, 	    	       
-									       
-					lyrics text, 			    	       
+					lyrics 	    text, 			    	       
 									       
 					primary key (album_title, title),
-					foreign key (album_title) references albums (title)
-					
-					)""")
+					foreign key (album_title) references albums (title))""")
 
 		canvas.close()
 
 	def prepare(self):
 
+		# 
 		canvas = MySQLdb.connect('localhost', 'root', db='canvas', charset='utf8')
 		brush  = canvas.cursor()
 
@@ -63,11 +55,9 @@ class canvas:
 
 		canvas, brush = self.prepare()
 
-		brush.execute("""insert into artists (name)
-					values (%s)
-					on duplicate key update
-					name = name""",
-					[artist_name])
+		brush.execute("""insert into artists (name) values (%s)
+				 on duplicate key update name=name""",
+				 [artist_name])
 
 		canvas.commit()
 		canvas.close()
@@ -76,11 +66,9 @@ class canvas:
 
 		canvas, brush = self.prepare()
 
-		brush.execute("""insert into albums (artist_name, title)
-					values (%s, %s)
-					on duplicate key update
-					artist_name = artist_name, title = title""",
-					[artist_name, album_title])
+		brush.execute("""insert into albums (artist_name, title) values (%s, %s)
+				 on duplicate key update artist_name=artist_name, title=title""",
+				 [artist_name, album_title])
 
 		canvas.commit()
 		canvas.close()
@@ -89,15 +77,14 @@ class canvas:
 
 		canvas, brush = self.prepare()
 
-		brush.execute("""insert into songs (album_title, title, lyrics)
-					values (%s, %s, %s)
-					on duplicate key update
-					album_title = album_title, title = title, lyrics = lyrics""",
-					[album_title, song_title, lyrics])
+		brush.execute("""insert into songs (album_title, title, lyrics) values (%s, %s, %s)
+				 on duplicate key update album_title=album_title, title=title, lyrics=lyrics""",
+				 [album_title, song_title, lyrics])
 
 		canvas.commit()
 		canvas.close()
 
+	# TODO 
 	def get_artists(self):
 
 		canvas, brush = self.prepare()
@@ -109,39 +96,3 @@ class canvas:
 		canvas.close()
 
 		return artists
-
-	def get_albums(self):
-
-		canvas, brush = self.prepare()
-
-		brush.execute("select title from albums")
-
-		albums = [item[0] for item in brush.fetchall()]
-
-		canvas.close()
-
-		return albums
-
-	def get_songs(self):
-
-		canvas, brush = self.prepare()
-
-		brush.execute("select title from songs")
-
-		songs = [item[0] for item in brush.fetchall()]
-
-		canvas.close()
-
-		return songs
-
-	def get_lyrics(self):
-
-		canvas, brush = self.prepare()
-
-		brush.execute("select lyrics from songs")
-
-		lyrics = [item[0] for item in brush.fetchall()]
-
-		canvas.close()
-
-		return lyrics
