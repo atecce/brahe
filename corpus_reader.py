@@ -1,133 +1,117 @@
 import sqlite3
 from nltk.tokenize import word_tokenize, sent_tokenize
 
-class reader:
+def prepare():
 
-	def prepare(self):
+	# connect to database
+	con = sqlite3.connect("lyrics_net")
+	cur = con.cursor()
 
-		# connect to database
-		con = sqlite3.connect("lyrics_net")
-		cur = con.cursor()
+	# return the connection
+	return con, cur
 
-		# return the connection
-		return con, cur
+def artists():
 
-	def artists(self):
+	# get the connection
+	con, cur = prepare()
 
-		# get the connection
-		con, cur = self.prepare()
+	# execute the query
+	cur.execute("select name from artists")
+	artists = (item[0] for item in cur.fetchall())
 
-		# execute the query
-		cur.execute("select name from artists")
-		artists = (item[0] for item in cur.fetchall())
+	# close the connection
+	con.close()
 
-		# close the connection
-		con.close()
+	return artists
 
-		return artists
+def albums(artist=None):
 
-	def albums(self, artist=None):
+	# get the connection
+	con, cur = prepare()
 
-		# get the connection
-		con, cur = self.prepare()
+	# set the query
+	query = "select title from albums"
 
-		# set the query
-		query = "select title from albums"
+	if artist: query += " where artist_name=\"%s\";" % artist
 
-		if artist: query += " where artist_name=\"%s\";" % artist
+	# execute the query
+	cur.execute(query)
+	albums = (item[0] for item in cur.fetchall())
 
-		# execute the query
-		cur.execute(query)
-		albums = (item[0] for item in cur.fetchall())
+	# close the connection
+	con.close()
 
-		# close the connection
-		con.close()
+	return albums
 
-		return albums
+def songs(artist=None, album=None):
 
-	def songs(self, artist=None, album=None):
+	# get the connection
+	con, cur = prepare()
 
-		# get the connection
-		con, cur = self.prepare()
+	# set the query TODO exploits here
+	query = "select title from songs"
 
-		# set the query TODO exploits here
-		query = "select title from songs"
+	if   album:  query += " where album_title=\"%s\";" % album
+	elif artist: query += " where album_title in (select title from albums where artist_name=\"%s\");" % artist
 
-		if   album:  query += " where album_title=\"%s\";" % album
-		elif artist: query += " where album_title in (select title from albums where artist_name=\"%s\");" % artist
+	# execute the query
+	cur.execute(query)
+	songs = (item[0] for item in cur.fetchall())
 
-		# execute the query
-		cur.execute(query)
-		songs = (item[0] for item in cur.fetchall())
+	# close the connection
+	con.close()
 
-		# close the connection
-		con.close()
+	return songs
 
-		return songs
+def lyrics(artist=None, album=None, song=None):
 
-	def lyrics(self, artist=None, album=None, song=None):
+	# get the connection
+	con, cur = prepare()
 
-		# get the connection
-		con, cur = self.prepare()
+	# set the query TODO exploits here
+	query = "select lyrics from songs"
 
-		# set the query TODO exploits here
-		query = "select lyrics from songs"
+	if   song:   query += " where title=\"%s\";" % song
+	elif album:  query += " where album_title=\"%s\";" % album
+	elif artist: query += " where album_title in (select title from albums where artist_name=\"%s\");" % artist
 
-		if   song:   query += " where title=\"%s\";" % song
-		elif album:  query += " where album_title=\"%s\";" % album
-		elif artist: query += " where album_title in (select title from albums where artist_name=\"%s\");" % artist
+	# execute the query
+	cur.execute(query)
+	text = (item[0] for item in cur.fetchall())
 
-		# execute the query
-		cur.execute(query)
-		text = (item[0] for item in cur.fetchall())
+	# close the connection
+	con.close()
 
-		# close the connection
-		con.close()
+	return text
 
-		return text
+def words(artist=None, album=None, song=None):
 
-	def words(self, artist=None, album=None, song=None):
+	# initialize list of words
+	word_list = list()
 
-		# get the connection
-		con, cur = self.prepare()
+	count = int()
 
-		# initialize list of words
-		word_list = list()
+	# tokenize all the text
+	for text in lyrics(artist, album, song): word_list += word_tokenize(text)
 
-		# tokenize all the text
-		for text in self.lyrics(artist, album, song): word_list += word_tokenize(text)
+	return word_list
 
-		# close the connection
-		con.close()
+def sents(artist=None, album=None, song=None):
 
-		return word_list
+	# initialize list of sentences
+	sent_list = list()
 
-	def sents(self, artist=None, album=None, song=None):
+	# tokenize all the text
+	for text in lyrics(artist, album, song): sent_list += sent_tokenize(text)
 
-		# get the connection
-		con, cur = self.prepare()
+	return sent_list
 
-		# initialize list of sentences
-		sent_list = list()
-
-		# tokenize all the text
-		for text in self.lyrics(artist, album, song): sent_list += sent_tokenize(text)
-
-		# close the connection
-		con.close()
-
-		return sent_list
-
-	def paras(self): pass
-	def tagged_words(self): pass
-	def tagged_sents(self): pass
-	def tagged_paras(self): pass
-	def chunked_sents(self): pass
-	def parsed_sents(self): pass
-	def parsed_paras(self): pass
-	def xml(self): pass
-	def raw(self): pass
-
-test = reader()
-
-print test.words()
+def paras(): pass
+def tagged_words(): pass
+def tagged_sents(): pass
+def tagged_paras(): pass
+def chunked_sents(): pass
+def parsed_sents(): pass
+def parsed_paras(): pass
+def xml(): pass
+def raw(): pass
