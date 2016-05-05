@@ -89,9 +89,9 @@ class lyrics_net(lyrics_site):
 		soup = self.communicate(self.url)
 
 		# extract alphabet urls
-		alphabet_urls = (self.url + re.match('^/artists/[S-Z]$', link.get('href')).group(0) + '/99999' \
+		alphabet_urls = (self.url + re.match('^/artists/[0A-Z]$', link.get('href')).group(0) + '/99999' \
 				 for link in soup.find_all('div', {'id': 'page-letter-search'})[0]             \
-				          if re.match('^/artists/[S-Z]$', str(link.get('href'))))
+				          if re.match('^/artists/[0A-Z]$', str(link.get('href'))))
 
 		# extract artist tags
 		artist_tags = (trace.strong.a 		  		     		  \
