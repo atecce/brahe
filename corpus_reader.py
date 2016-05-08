@@ -111,8 +111,6 @@ def words(artist=None, album=None, song=None):
 	# initialize list of words
 	word_list = list()
 
-	count = int()
-
 	# tokenize all the text
 	for text in lyrics(artist, album, song): word_list += word_tokenize(text)
 
