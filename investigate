@@ -20,6 +20,8 @@ from time import sleep
 # set the canvas
 from db import canvas
 
+import sys
+
 class lyrics_site:	
 
 	# keep track of everything
@@ -39,21 +41,14 @@ class lyrics_site:
 
 				page = requests.get(url)
 
-				if page.status_code != 200: 
+				# record the responses
+				with open('responses.txt', 'a') as f: f.write(url + ', ' + str(page.status_code) + '\n')
 
-					print url, page.status_code
-
-				# page not found
-				if page.status_code == 404: continue
-
-				# request timeout
-				elif page.status_code == 408: continue
-
-				# server unavailable
-				elif page.status_code == 503: continue
-
-				# timeout
-				elif page.status_code == 504: continue
+				# handle status codes
+				if   page.status_code == 404: sys.exit()	# link not found
+				elif page.status_code == 408: continue		# request timeout
+				elif page.status_code == 503: continue		# server unavailable
+				elif page.status_code == 504: continue		# timeout
 
 				soup = BeautifulSoup(page.content)
 
@@ -62,7 +57,7 @@ class lyrics_site:
 			# give communication a chance
 			except requests.exceptions.ConnectionError: 
 
-				print "Trying to connect..."
+				print "Trying..."
 
 				pass
 
@@ -142,9 +137,9 @@ class lyrics_net(lyrics_site):
 					album_title = item.h3.a.text
 					album_url   = urljoin(self.url, item.h3.a.get('href'))
 
-#					print '\t', album_title
-#					print '\t', album_url
-#					print
+					print '\t', album_title
+					print '\t', album_url
+					print
 
 					# add the album to the canvas
 					self.canvas.add_album(artist_name, album_title)
@@ -152,7 +147,7 @@ class lyrics_net(lyrics_site):
 					# get the soup
 					album_soup = self.communicate(album_url)
 
-					# handle the redirects
+					# handle Dorothy (which do not return the proper status code)
 					if album_soup.find_all('body', {'id': 's4-page-homepage'}): 
 
 						# extract the song data
@@ -160,7 +155,7 @@ class lyrics_net(lyrics_site):
 							     for trace in item.find_all('tr') 	   		    \
 								       if trace.a)
 		
-					# 
+					# otherwise
 					else:
 
 						# extract the song data
@@ -183,7 +178,9 @@ class lyrics_net(lyrics_site):
 
 			lyrics = song_soup.find_all('pre', {'id': 'lyric-body-text'})[0].text
 
-#			for line in lyrics.splitlines(): print '\t\t\t', line
+			for line in lyrics.splitlines(): print '\t\t\t', line
+
+			print
 
 		except IndexError: return
 
@@ -193,8 +190,7 @@ class lyrics_net(lyrics_site):
 if __name__ == '__main__':
 
 	# setup redirect trackers
-	with open('home_page_albums.txt', 'w') as f: f.write('')
-	with open('home_page_songs.txt', 'w') as f:  f.write('')
+	with open('responses.txt', 'w') as f: f.write('')
 
 	# start the investigation
 	investigation = lyrics_net()
