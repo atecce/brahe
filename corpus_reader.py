@@ -16,7 +16,7 @@ def artists():
 	con, cur = prepare()
 
 	# execute the query
-	cur.execute("select name from artists")
+	cur.execute("select name from artists;")
 	artists = (item[0] for item in cur.fetchall())
 
 	# close the connection
@@ -32,7 +32,9 @@ def albums(artist=None):
 	# set the query
 	query = "select title from albums"
 
-	if artist: query += " where artist_name=\"%s\";" % artist
+	if artist: query += " where artist_name=\"%s\"" % artist
+
+	query += ";"
 
 	# execute the query
 	cur.execute(query)
@@ -51,8 +53,15 @@ def songs(artist=None, album=None):
 	# set the query TODO exploits here
 	query = "select title from songs"
 
-	if   album:  query += " where album_title=\"%s\";" % album
-	elif artist: query += " where album_title in (select title from albums where artist_name=\"%s\");" % artist
+	if album: 
+
+		query += " where album_title=\"%s\"" % album
+		
+		if artist: query += " and album_title in (select title from albums where artist_name=\"%s\")" % artist
+
+	elif artist: query += " where album_title in (select title from albums where artist_name=\"%s\")" % artist
+
+	query += ";"
 
 	# execute the query
 	cur.execute(query)
@@ -71,9 +80,22 @@ def lyrics(artist=None, album=None, song=None):
 	# set the query TODO exploits here
 	query = "select lyrics from songs"
 
-	if   song:   query += " where title=\"%s\";" % song
-	elif album:  query += " where album_title=\"%s\";" % album
-	elif artist: query += " where album_title in (select title from albums where artist_name=\"%s\");" % artist
+	if song: 
+
+		query += " where title=\"%s\"" % song
+
+		if album:  query += " and album_title=\"%s\"" % album
+		if artist: query += " and album_title in (select title from albums where artist_name=\"%s\")" % artist
+
+	elif album: 
+
+		query += " where album_title=\"%s\";" % album
+
+		if artist: query += " and album_title in (select title from albums where artist_name=\"%s\")" % artist
+
+	elif artist: query += " where album_title in (select title from albums where artist_name=\"%s\")" % artist
+
+	query += ";"
 
 	# execute the query
 	cur.execute(query)
