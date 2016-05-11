@@ -24,174 +24,182 @@ import sys
 
 class lyrics_site:	
 
-	# keep track of everything
-	processes = list()
+    # keep track of everything
+    processes = list()
 
-	siblings = {"artists": list(),
-		    "albums":  list(),
-		    "songs":   list()}
+    siblings = {"artists": list(),
+                "albums":  list(),
+                "songs":   list()}
 
-	def communicate(self, url):
+    def communicate(self, url):
 
-		# never stop trying
-		while True:
+        # never stop trying
+        while True:
 
-			# make some soup
-			try:
+            print "Trying...", url
 
-				page = requests.get(url)
+            # make some soup
+            try:
 
-				# record the responses
-				with open('responses.txt', 'a') as f: f.write(url + ', ' + str(page.status_code) + '\n')
+                page = requests.get(url)
 
-				# handle status codes
-				if   page.status_code == 404: sys.exit()	# link not found
-				elif page.status_code == 408: continue		# request timeout
-				elif page.status_code == 503: continue		# server unavailable
-				elif page.status_code == 504: continue		# timeout
+                # record the responses
+                with open('responses.txt', 'a') as f: f.write(url + ', ' + str(page.status_code) + '\n')
 
-				soup = BeautifulSoup(page.content)
+                # handle status codes
+                if   page.status_code == 404: sys.exit()    # link not found
+                elif page.status_code == 408: continue	    # request timeout
+                elif page.status_code == 503: continue	    # server unavailable
+                elif page.status_code == 504: continue	    # timeout
 
-				return soup
+                soup = BeautifulSoup(page.content)
 
-			# give communication a chance
-			except requests.exceptions.ConnectionError: 
+                return soup
 
-				print "Trying..."
+            # give communication a chance
+            except requests.exceptions.ConnectionError: pass
 
-				pass
+            sleep(1)
 
-			sleep(1)
+    def multitask(self, level, function, process_name, process_args):
 
-	def multitask(self, level, function, process_name, process_args):
+        # fork the process
+        process = Process(target=function, name=process_name, args=process_args)
+        process.start()
 
-		# fork the process
-		process = Process(target=function, name=process_name, args=process_args)
-		process.start()
+        # track the processes
+        self.processes.append(process)
+        self.siblings[level].append(process)
 
-		# track the processes
-		self.processes.append(process)
-		self.siblings[level].append(process)
+        # pace yourself
+        while len(self.siblings[level]) >= 10: 
 
-		# pace yourself
-		while len(self.siblings[level]) >= 10: 
-
-#			print "Pruning", level, "..."
-			self.siblings[level].pop(0).join()
+            # print "Pruning", level, "..."
+            self.siblings[level].pop(0).join()
 
 class lyrics_net(lyrics_site): 
 
-	# know where you are
-	url = 'http://www.lyrics.net/'
+    # know where you are
+    url = 'http://www.lyrics.net/'
 
-	canvas = canvas("lyrics_net")
+    canvas = canvas("lyrics_net")
 
-	def investigate(self):
+    def investigate(self, start_character='0'):
 
-		# need this for interpretation
-		import re
+        # need this for interpretation
+        import re
+        import string
 
-		# get the soup
-		soup = self.communicate(self.url)
+        # get the soup
+        soup = self.communicate(self.url)
 
-		# extract alphabet urls
-		alphabet_urls = (urljoin(self.url, re.match('^/artists/[0A-Z]$', link.get('href')).group(0) + '/99999') \
-				 for link in soup.find_all('div', {'id': 'page-letter-search'})[0]             		\
-				          if re.match('^/artists/[0A-Z]$', str(link.get('href'))))
+        # set artist expression
+        expression = str()
 
-		# extract artist tags
-		artist_tags = (trace.strong.a 		  		     		  \
-			       for alphabet_url in alphabet_urls 	     	 	  \
-			       for trace in self.communicate(alphabet_url).find_all('tr') \
-			       		 if trace.strong)
+        if start_character == '0': expression = '^/artists/[0A-Z]$'
 
-		# get artist data
-		artist_data = ((artist_tag.text, urljoin(self.url, artist_tag.get('href'))) for artist_tag in artist_tags)
+        elif start_character in string.ascii_uppercase:
 
-		# for each artist
-		for artist_name, artist_url in artist_data: 
-				
-			self.multitask('artists', self.honor, artist_name, (artist_name, artist_url,))
+            expression = '^/artists/[' + start_character + '-Z]$'
 
-	def honor(self, artist_name, artist_url):
+        # extract alphabet urls
+        alphabet_urls = (urljoin(self.url, re.match(expression, link.get('href')).group(0) + '/99999') \
+                         for link in soup.find_all('div', {'id': 'page-letter-search'})[0]             \
+                                  if re.match(expression, str(link.get('href'))))
 
-		# get the soup
-		artist_soup = self.communicate(artist_url)
+        # extract artist tags
+        artist_tags = (trace.strong.a 		  		     		  \
+                       for alphabet_url in alphabet_urls 	     	 	  \
+                       for trace in self.communicate(alphabet_url).find_all('tr') \
+                                 if trace.strong)
 
-		# add the artist to the canvas
-		self.canvas.add_artist(artist_name)
+        # get artist data
+        artist_data = ((artist_tag.text, urljoin(self.url, artist_tag.get('href'))) for artist_tag in artist_tags)
 
-		# get the album items
-		album_items = artist_soup.find_all('div', {'class': 'clearfix'})
+        # for each artist
+        for artist_name, artist_url in artist_data: 
 
-		# for each item
-		for item in album_items: 
+            self.multitask('artists', self.honor, artist_name, (artist_name, artist_url,))
 
-			# check for a header
-			if item.h3:
+    def honor(self, artist_name, artist_url):
 
-				# check the header contains a link
-				if item.h3.a:
+        # get the soup
+        artist_soup = self.communicate(artist_url)
 
-					# set the album information
-					album_title = item.h3.a.text
-					album_url   = urljoin(self.url, item.h3.a.get('href'))
+        # add the artist to the canvas
+        self.canvas.add_artist(artist_name)
 
-					print '\t', album_title
-					print '\t', album_url
-					print
+        # get the album items
+        album_items = artist_soup.find_all('div', {'class': 'clearfix'})
 
-					# add the album to the canvas
-					self.canvas.add_album(artist_name, album_title)
-		
-					# get the soup
-					album_soup = self.communicate(album_url)
+        # for each item
+        for item in album_items: 
 
-					# handle Dorothy (which do not return the proper status code)
-					if album_soup.find_all('body', {'id': 's4-page-homepage'}): 
+            # check for a header
+            if item.h3:
 
-						# extract the song data
-						song_data = ((trace.a.text, urljoin(self.url, trace.a.get('href'))) \
-							     for trace in item.find_all('tr') 	   		    \
-								       if trace.a)
-		
-					# otherwise
-					else:
+                # check the header contains a link
+                if item.h3.a:
 
-						# extract the song data
-						song_data = ((song_tag.a.text, urljoin(self.url, song_tag.a.get('href'))) \
-							     for song_tag in album_soup.find_all('strong') 	   	  \
-									  if song_tag.a)
-			
-					# for each song
-					for song_title, song_url in song_data:
-		
-						self.multitask('songs', self.meditate, song_title, (album_title, song_title, song_url,))
+                    # set the album information
+                    album_title = item.h3.a.text
+                    album_url   = urljoin(self.url, item.h3.a.get('href'))
 
-	def meditate(self, album_title, song_title, song_url):
+                    print '\t', album_title
+                    print '\t', album_url
+                    print
 
-		# make some soup
-		song_soup = self.communicate(song_url)
+                    # add the album to the canvas
+                    self.canvas.add_album(artist_name, album_title)
 
-		# sometimes there's nothing to meditate on
-		try: 
+                    # get the soup
+                    album_soup = self.communicate(album_url)
 
-			lyrics = song_soup.find_all('pre', {'id': 'lyric-body-text'})[0].text
+                    # handle Dorothy (which do not return the proper status code)
+                    if album_soup.find_all('body', {'id': 's4-page-homepage'}): 
 
-			for line in lyrics.splitlines(): print '\t\t\t', line
+                        # extract the song data
+                        song_data = ((trace.a.text, urljoin(self.url, trace.a.get('href'))) \
+                                      for trace in item.find_all('tr') 	   		    \
+                                                if trace.a)
 
-			print
+                    # otherwise
+                    else:
 
-		except IndexError: return
+                        # extract the song data
+                        song_data = ((song_tag.a.text, urljoin(self.url, song_tag.a.get('href'))) \
+                                      for song_tag in album_soup.find_all('strong') 	   	  \
+                                                   if song_tag.a)
 
-		# add song to canvas
-		self.canvas.add_song(album_title, song_title, lyrics)
+                    # for each song
+                    for song_title, song_url in song_data:
+
+                        self.multitask('songs', self.meditate, song_title, (album_title, song_title, song_url,))
+
+    def meditate(self, album_title, song_title, song_url):
+
+        # make some soup
+        song_soup = self.communicate(song_url)
+
+        # sometimes there's nothing to meditate on
+        try: 
+
+            lyrics = song_soup.find_all('pre', {'id': 'lyric-body-text'})[0].text
+
+            for line in lyrics.splitlines(): print '\t\t\t', line
+
+            print
+
+        except IndexError: return
+
+        # add song to canvas
+        self.canvas.add_song(album_title, song_title, lyrics)
 
 if __name__ == '__main__':
 
-	# setup redirect trackers
-	with open('responses.txt', 'w') as f: f.write('')
+    # setup redirect trackers
+    with open('responses.txt', 'w') as f: f.write('')
 
-	# start the investigation
-	investigation = lyrics_net()
-	investigation.investigate()
+    # start the investigation
+    investigation = lyrics_net()
+    investigation.investigate(sys.argv[1])
