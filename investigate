@@ -85,7 +85,7 @@ class lyrics_net(lyrics_site):
 
         elif start in string.ascii_uppercase:
 
-            expression = '^/artists/[' + start_character + '-Z]$'
+            expression = '^/artists/[' + start + '-Z]$'
 
         # extract alphabet urls
         alphabet_urls = (urljoin(self.url, re.match(expression, link.get('href')).group(0) + '/99999') \
