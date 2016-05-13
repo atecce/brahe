@@ -4,6 +4,7 @@
 # But, if possible, to stimulate someone to thoughts of their own.
 #
 
+import sys
 from time import sleep
 import argparse
 import re
@@ -91,6 +92,8 @@ class lyrics_net(lyrics_site):
         alphabet_urls = (urljoin(self.url, re.match(expression, link.get('href')).group(0) + '/99999') \
                          for link in soup.find_all('div', {'id': 'page-letter-search'})[0]             \
                                   if re.match(expression, str(link.get('href'))))
+
+        # TODO more specificity for 
 
         # extract artist tags
         artist_tags = (trace.strong.a 		  		     		  \
