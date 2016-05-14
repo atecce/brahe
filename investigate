@@ -84,16 +84,14 @@ class lyrics_net(lyrics_site):
 
         if start == '0': expression = '^/artists/[0A-Z]$'
 
-        elif start in string.ascii_uppercase:
+        elif start[0] in string.ascii_uppercase:
 
-            expression = '^/artists/[' + start + '-Z]$'
+            expression = '^/artists/[' + start[0] + '-Z]$'
 
         # extract alphabet urls
         alphabet_urls = (urljoin(self.url, re.match(expression, link.get('href')).group(0) + '/99999') \
                          for link in soup.find_all('div', {'id': 'page-letter-search'})[0]             \
                                   if re.match(expression, str(link.get('href'))))
-
-        # TODO more specificity for 
 
         # extract artist tags
         artist_tags = (trace.strong.a 		  		     		  \
@@ -104,9 +102,19 @@ class lyrics_net(lyrics_site):
         # get artist data
         artist_data = ((artist_tag.text, urljoin(self.url, artist_tag.get('href'))) for artist_tag in artist_tags)
 
+        # pick up where you left off
+        caught_up = bool()
+
         # for each artist
         for artist_name, artist_url in artist_data: 
 
+            # check if you've caught up
+            if re.match("^" + self.url + "artist/" + start + ".*/[0-9]*$", artist_url): caught_up = True
+
+            # if you haven't, continue
+            if not caught_up: continue
+
+            # fork
             self.multitask('artists', self.honor, artist_name, (artist_name, artist_url,))
 
     def honor(self, artist_name, artist_url):
@@ -162,6 +170,7 @@ class lyrics_net(lyrics_site):
                     # for each song
                     for song_title, song_url in song_data:
 
+                        # fork
                         self.multitask('songs', self.meditate, song_title, (album_title, song_title, song_url,))
 
     def meditate(self, album_title, song_title, song_url):
