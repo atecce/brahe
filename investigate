@@ -29,7 +29,7 @@ class lyrics_site:
         # never stop trying
         while True:
 
-            print "Trying...", url
+            if self.verbose: print "Trying...", url
 
             # make some soup
             try:
@@ -74,10 +74,11 @@ class lyrics_net(lyrics_site):
 
     canvas = canvas("lyrics_net")
 
-    def investigate(self, start, branch):
+    def investigate(self, start, branch, verbose):
 
-        # specify branch
-        self.branch = branch
+        # specify flags
+        self.branch  = branch
+        self.verbose = verbose
 
         # get the soup
         soup = self.communicate(self.url)
@@ -144,9 +145,11 @@ class lyrics_net(lyrics_site):
                     album_title = item.h3.a.text
                     album_url   = urljoin(self.url, item.h3.a.get('href'))
 
-                    print '\t', album_title
-                    print '\t', album_url
-                    print
+                    if self.verbose:
+
+                        print '\t', album_title
+                        print '\t', album_url
+                        print
 
                     # add the album to the canvas
                     self.canvas.add_album(artist_name, album_title)
@@ -186,9 +189,11 @@ class lyrics_net(lyrics_site):
 
             lyrics = song_soup.find_all('pre', {'id': 'lyric-body-text'})[0].text
 
-            for line in lyrics.splitlines(): print '\t\t\t', line
+            if self.verbose:
 
-            print
+                for line in lyrics.splitlines(): print '\t\t\t', line
+
+                print
 
         except IndexError: return
 
@@ -197,12 +202,18 @@ class lyrics_net(lyrics_site):
 
 if __name__ == '__main__':
 
+    # declare parser
+    parser  = argparse.ArgumentParser()
+
+    # add arguments
+    start   = parser.add_argument("-s", "--start",   help="specify the start character",  default='0')
+    branch  = parser.add_argument("-b", "--branch",  help="specify the branching factor", default=2)
+    verbose = parser.add_argument("-v", "--verbose", help="specify the verbosity",        default=False,
+                                 action='store_true')
+
     # parse arguments
-    parser = argparse.ArgumentParser()
-    start  = parser.add_argument("-s", "--start",  help="specify the start character",  default='0')
-    branch = parser.add_argument("-b", "--branch", help="specify the branching factor", default=2)
-    args   = parser.parse_args()
+    args = parser.parse_args()
 
     # start the investigation
     investigation = lyrics_net()
-    investigation.investigate(args.start, args.branch)
+    investigation.investigate(args.start, args.branch, args.verbose)
