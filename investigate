@@ -24,6 +24,13 @@ class lyrics_site:
                 "albums":  list(),
                 "songs":   list()}
 
+    def __init__(self, start, branch, verbose):
+
+        # specify flags
+        self.start   = start
+        self.branch  = branch
+        self.verbose = verbose
+
     def communicate(self, url):
 
         # never stop trying
@@ -61,10 +68,12 @@ class lyrics_site:
         self.processes.append(process)
         self.siblings[level].append(process)
 
-        # pace yourself
-        while len(self.siblings[level]) >= self.branch: 
+        print self.branch
 
-            # print "Pruning", level, "..."
+        # pace yourself
+        while len(self.siblings[level]) >= self.branch:
+
+            print "Pruning", level, "..."
             self.siblings[level].pop(0).join()
 
 class lyrics_net(lyrics_site): 
@@ -74,11 +83,7 @@ class lyrics_net(lyrics_site):
 
     canvas = canvas("lyrics_net")
 
-    def investigate(self, start, branch, verbose):
-
-        # specify flags
-        self.branch  = branch
-        self.verbose = verbose
+    def investigate(self):
 
         # get the soup
         soup = self.communicate(self.url)
@@ -86,11 +91,11 @@ class lyrics_net(lyrics_site):
         # set artist expression
         expression = str()
 
-        if start == '0': expression = '^/artists/[0A-Z]$'
+        if self.start == '0': expression = '^/artists/[0A-Z]$'
 
-        elif start[0] in string.ascii_uppercase:
+        elif self.start[0] in string.ascii_uppercase:
 
-            expression = '^/artists/[' + start[0] + '-Z]$'
+            expression = '^/artists/[' + self.start[0] + '-Z]$'
 
         # extract alphabet urls
         alphabet_urls = (urljoin(self.url, re.match(expression, link.get('href')).group(0) + '/99999') \
@@ -113,7 +118,7 @@ class lyrics_net(lyrics_site):
         for artist_name, artist_url in artist_data: 
 
             # check if you've caught up
-            if re.match("^" + self.url + "artist/" + start + ".*/[0-9]*$", artist_url): caught_up = True
+            if re.match("^" + self.url + "artist/" + self.start + ".*/[0-9]*$", artist_url): caught_up = True
 
             # if you haven't, continue
             if not caught_up: continue
@@ -207,7 +212,8 @@ if __name__ == '__main__':
 
     # add arguments
     start   = parser.add_argument("-s", "--start",   help="specify the start character",  default='0')
-    branch  = parser.add_argument("-b", "--branch",  help="specify the branching factor", default=2)
+    branch  = parser.add_argument("-b", "--branch",  help="specify the branching factor", default=2, 
+                                 type=int)
     verbose = parser.add_argument("-v", "--verbose", help="specify the verbosity",        default=False,
                                  action='store_true')
 
@@ -215,5 +221,5 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     # start the investigation
-    investigation = lyrics_net()
-    investigation.investigate(args.start, args.branch, args.verbose)
+    investigation = lyrics_net(args.start, args.branch, args.verbose)
+    investigation.investigate()
