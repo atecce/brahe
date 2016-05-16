@@ -62,7 +62,7 @@ class lyrics_site:
         self.siblings[level].append(process)
 
         # pace yourself
-        while len(self.siblings[level]) >= 10: 
+        while len(self.siblings[level]) >= self.branch: 
 
             # print "Pruning", level, "..."
             self.siblings[level].pop(0).join()
@@ -74,7 +74,10 @@ class lyrics_net(lyrics_site):
 
     canvas = canvas("lyrics_net")
 
-    def investigate(self, start):
+    def investigate(self, start, branch):
+
+        # specify branch
+        self.branch = branch
 
         # get the soup
         soup = self.communicate(self.url)
@@ -196,10 +199,10 @@ if __name__ == '__main__':
 
     # parse arguments
     parser = argparse.ArgumentParser()
-    start  = parser.add_argument("-s", "--start", help="specify the start character",
-                                                  default='0')
+    start  = parser.add_argument("-s", "--start",  help="specify the start character",  default='0')
+    branch = parser.add_argument("-b", "--branch", help="specify the branching factor", default=2)
     args   = parser.parse_args()
 
     # start the investigation
     investigation = lyrics_net()
-    investigation.investigate(args.start)
+    investigation.investigate(args.start, args.branch)
