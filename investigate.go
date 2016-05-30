@@ -7,12 +7,16 @@ import (
 	"regexp"
 )
 
-func main() {
+// get url
+var url string = "http://www.lyrics.net"
 
+func getLetters() []string {
+
+	// initialize urls to return
+	var letter_urls []string
+
+	// set regular expression for letter suburls
 	letters, _ := regexp.Compile("^/artists/[0A-Z]$")
-
-	// get url
-	url := "http://www.lyrics.net/"
 
 	// get url
 	resp, err := http.Get(url)
@@ -20,7 +24,7 @@ func main() {
 	// catch error
 	if err != nil {
 		fmt.Println("ERROR: Failed to crawl \"" + url + "\"")
-		return
+		return nil
 	}
 
 	// set body
@@ -38,7 +42,7 @@ func main() {
 
 		// catch error
 		case tt == html.ErrorToken:
-			return
+			return letter_urls
 
 		// catch start tags
 		case tt == html.StartTagToken:
@@ -46,15 +50,94 @@ func main() {
 			// set token
 			t := z.Token()
 
-			// print divider tokens
+			// find a tokens
 			if t.Data == "a" {
 
+				// iterate over token
 				for _, a := range t.Attr {
 
+					// if the link is inside
 					if a.Key == "href" {
 
+						// and the link matches the letters
 						if letters.MatchString(a.Val) {
-							fmt.Println(a.Val)
+
+							// concatenate the url
+							letter_urls = append(letter_urls, url + a.Val + "/99999")
+
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+func main() {
+
+	// get letter urls
+	letter_urls := getLetters()
+
+	// set regular expression for letter suburls
+	artists, _ := regexp.Compile("^artist/.*$")
+
+	// go through letter urls
+	for _, letter_url := range letter_urls {
+
+		// get url
+		resp, err := http.Get(letter_url)
+
+		// catch error
+		if err != nil {
+			fmt.Println("ERROR: Failed to crawl \"" + letter_url + "\"")
+		}
+
+		// set body
+		b := resp.Body
+
+		// declare tokenizer
+		z := html.NewTokenizer(b)
+
+		var breakOuter bool
+
+		for {
+			if breakOuter {
+				break
+			}
+
+			// get next token
+			tt := z.Next()
+
+			switch {
+
+			// catch error
+			case tt == html.ErrorToken:
+
+				b.Close()
+
+				breakOuter = true
+				break
+
+			// catch start tags
+			case tt == html.StartTagToken:
+
+				// set token
+				t := z.Token()
+
+				// find a tokens
+				if t.Data == "a" {
+
+					// iterate over token
+					for _, a := range t.Attr {
+
+						// if the link is inside
+						if a.Key == "href" {
+
+							if artists.MatchString(a.Val) {
+
+								fmt.Println(url + "/" + a.Val)
+							}
+
 						}
 					}
 				}
