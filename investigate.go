@@ -1,6 +1,7 @@
 package main
 
 import (
+	"io"
 	"io/ioutil"
 	"fmt"
 	"golang.org/x/net/html"
@@ -16,17 +17,8 @@ func getArtists(letter_url string) {
 	// set regular expression for letter suburls
 	artists, _ := regexp.Compile("^artist/.*$")
 
-	// get url
-	resp, err := http.Get(letter_url)
-
-	// catch error
-	if err != nil {
-		fmt.Println("ERROR: Failed to crawl \"" + letter_url + "\"")
-		return
-	}
-
 	// set body
-	b := resp.Body
+	b := communicate(letter_url)
 	defer b.Close()
 
 	// declare tokenizer
@@ -82,27 +74,16 @@ func getArtists(letter_url string) {
 
 func parseArtist(artist_url string) {
 
-	// get url
-	resp, err := http.Get(artist_url)
-
-	// catch error
-	if err != nil {
-		fmt.Println("ERROR: Failed to crawl \"" + artist_url + "\"")
-		return
-	}
-
 	// set body
-	b := resp.Body
+	b := communicate(artist_url)
+	defer b.Close()
 
 	bytes, _ := ioutil.ReadAll(b)
 
 	fmt.Println(string(bytes))
 }
 
-func main() {
-
-	// set regular expression for letter suburls
-	letters, _ := regexp.Compile("^/artists/[0A-Z]$")
+func communicate(url string) io.ReadCloser {
 
 	// get url
 	resp, err := http.Get(url)
@@ -110,11 +91,20 @@ func main() {
 	// catch error
 	if err != nil {
 		fmt.Println("ERROR: Failed to crawl \"" + url + "\"")
-		return
+		return nil
 	}
 
+	// return body
+	return resp.Body
+}
+
+func main() {
+
+	// set regular expression for letter suburls
+	letters, _ := regexp.Compile("^/artists/[0A-Z]$")
+
 	// set body
-	b := resp.Body
+	b := communicate(url)
 	defer b.Close()
 
 	// declare tokenizer
