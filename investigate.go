@@ -1,3 +1,8 @@
+//
+// I should not like my writing to spare other people the trouble of thinking.
+// But, if possible, to stimulate someone to thoughts of their own.
+//
+
 package main
 
 import (
@@ -40,11 +45,8 @@ func getArtists(letter_url string) {
 		// catch start tags
 		case tt == html.StartTagToken:
 
-			// set token
-			t := z.Token()
-
 			// find strong tokens
-			if t.Data == "strong" {
+			if z.Token().Data == "strong" {
 
 				// get next token
 				z.Next()
@@ -61,8 +63,10 @@ func getArtists(letter_url string) {
 
 							artist_url := url + "/" + a.Val
 
+							z.Next()
+
 							// concatenate the url
-							fmt.Println(artist_url)
+							fmt.Println(z.Token(), artist_url)
 
 							parseArtist(artist_url)
 
@@ -153,24 +157,6 @@ func main() {
 	}
 }
 
-//#!/usr/bin/env python
-//#
-//# I should not like my writing to spare other people the trouble of thinking.
-//# But, if possible, to stimulate someone to thoughts of their own.
-//#
-//
-//import sys
-//from os import system
-//from time import sleep
-//import argparse
-//import re
-//import string
-//import requests
-//from requests.compat import urljoin
-//from bs4 import BeautifulSoup
-//from multiprocessing import Process
-//from db import canvas
-//
 //class lyrics_site:	
 //
 //    # keep track of everything
@@ -186,33 +172,6 @@ func main() {
 //        self.start   = start
 //        self.branch  = branch
 //        self.verbose = verbose
-//
-//    def communicate(self, url):
-//
-//        # never stop trying
-//        while True:
-//
-//            if self.verbose: print "Trying...", url
-//
-//            # make some soup
-//            try:
-//
-//                page = requests.get(url)
-//
-//                # handle status codes
-//                if   page.status_code == 404: sys.exit()    # link not found
-//                elif page.status_code == 408: continue	    # request timeout
-//                elif page.status_code == 503: continue	    # server unavailable
-//                elif page.status_code == 504: continue	    # timeout
-//
-//                soup = BeautifulSoup(page.content)
-//
-//                return soup
-//
-//            # give communication a chance
-//            except requests.exceptions.ConnectionError: pass
-//
-//            sleep(1)
 //
 //    def multitask(self, level, function, process_name, process_args):
 //
@@ -252,11 +211,6 @@ func main() {
 //        elif self.start[0] in string.ascii_uppercase:
 //
 //            expression = '^/artists/[' + self.start[0] + '-Z]$'
-//
-//        # extract alphabet urls
-//        alphabet_urls = (urljoin(self.url, re.match(expression, link.get('href')).group(0) + '/99999') \
-//                         for link in soup.find_all('div', {'id': 'page-letter-search'})[0]             \
-//                                  if re.match(expression, str(link.get('href'))))
 //
 //        # extract artist tags
 //        artist_tags = (trace.strong.a 		  		     		  \
