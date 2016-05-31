@@ -7,7 +7,6 @@ package main
 
 import (
 	"io"
-	"io/ioutil"
 	"fmt"
 	"golang.org/x/net/html"
 	"net/http"
@@ -16,8 +15,6 @@ import (
 
 // get url
 var url string = "http://www.lyrics.net"
-
-var count int
 
 func getArtists(letter_url string) {
 
@@ -34,26 +31,25 @@ func getArtists(letter_url string) {
 	for {
 
 		// get next token
-		tt := z.Next()
+		next := z.Next()
 
 		switch {
 
 		// catch error
-		case tt == html.ErrorToken:
+		case next == html.ErrorToken:
 			return
 
 		// catch start tags
-		case tt == html.StartTagToken:
+		case next == html.StartTagToken:
 
 			// find strong tokens
 			if z.Token().Data == "strong" {
 
 				// get next token
 				z.Next()
-				token := z.Token()
 
 				// iterate over token
-				for _, a := range token.Attr {
+				for _, a := range z.Token().Attr {
 
 					// if the link is inside
 					if a.Key == "href" {
@@ -61,13 +57,19 @@ func getArtists(letter_url string) {
 						// if it matches the artist string
 						if artists.MatchString(a.Val) {
 
+							// concatenate the url
 							artist_url := url + "/" + a.Val
 
+							// next token is artist name
 							z.Next()
+							artist_name := z.Token()
 
-							// concatenate the url
-							fmt.Println(z.Token(), artist_url)
+							// display
+							fmt.Println()
+							fmt.Println(artist_name, artist_url)
+							fmt.Println()
 
+							// parse the artist
 							parseArtist(artist_url)
 
 						}
@@ -84,9 +86,46 @@ func parseArtist(artist_url string) {
 	b := communicate(artist_url)
 	defer b.Close()
 
-	bytes, _ := ioutil.ReadAll(b)
+	// declare tokenizer
+	z := html.NewTokenizer(b)
 
-	fmt.Println(string(bytes))
+	for {
+		// get next token
+		next := z.Next()
+
+		switch {
+
+		// catch error
+		case next == html.ErrorToken:
+			return
+
+		// catch start tags
+		case next == html.StartTagToken:
+
+			// set token
+			t := z.Token()
+
+			// look for artist album labels
+			if t.Data == "h3" {
+				for _, a := range t.Attr {
+					if a.Key == "class" && a.Val == "artist-album-label" {
+
+						// album links are next token
+						z.Next()
+						for _, album_attribute := range z.Token().Attr {
+							if album_attribute.Key == "href" {
+								fmt.Println("\t", url + album_attribute.Val)
+							}
+						}
+
+						// album titles are the next token
+						z.Next()
+						fmt.Println("\t", z.Token())
+					}
+				}
+			}
+		}
+	}
 }
 
 func communicate(url string) io.ReadCloser {
@@ -118,16 +157,16 @@ func main() {
 
 	for {
 		// get next token
-		tt := z.Next()
+		next := z.Next()
 
 		switch {
 
 		// catch error
-		case tt == html.ErrorToken:
+		case next == html.ErrorToken:
 			return
 
 		// catch start tags
-		case tt == html.StartTagToken:
+		case next == html.StartTagToken:
 
 			// set token
 			t := z.Token()
@@ -147,6 +186,7 @@ func main() {
 							// concatenate the url
 							letter_url := url + a.Val + "/99999"
 
+							// get artists
 							getArtists(letter_url)
 
 						}
@@ -211,15 +251,6 @@ func main() {
 //        elif self.start[0] in string.ascii_uppercase:
 //
 //            expression = '^/artists/[' + self.start[0] + '-Z]$'
-//
-//        # extract artist tags
-//        artist_tags = (trace.strong.a 		  		     		  \
-//                       for alphabet_url in alphabet_urls 	     	 	  \
-//                       for trace in self.communicate(alphabet_url).find_all('tr') \
-//                                 if trace.strong)
-//
-//        # get artist data
-//        artist_data = ((artist_tag.text, urljoin(self.url, artist_tag.get('href'))) for artist_tag in artist_tags)
 //
 //        # pick up where you left off
 //        caught_up = bool()
