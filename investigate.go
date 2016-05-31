@@ -12,6 +12,8 @@ import (
 // get url
 var url string = "http://www.lyrics.net"
 
+var count int
+
 func getArtists(letter_url string) {
 
 	// set regular expression for letter suburls
@@ -33,10 +35,6 @@ func getArtists(letter_url string) {
 
 		// catch error
 		case tt == html.ErrorToken:
-
-			// close body
-			b.Close()
-
 			return
 
 		// catch start tags
@@ -45,11 +43,15 @@ func getArtists(letter_url string) {
 			// set token
 			t := z.Token()
 
-			// find a tokens
-			if t.Data == "a" {
+			// find strong tokens
+			if t.Data == "strong" {
+
+				// get next token
+				z.Next()
+				token := z.Token()
 
 				// iterate over token
-				for _, a := range t.Attr {
+				for _, a := range token.Attr {
 
 					// if the link is inside
 					if a.Key == "href" {
