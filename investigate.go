@@ -19,13 +19,32 @@ import (
 // get url
 var url string = "http://www.lyrics.net"
 
-func getArtists(letter_url string) {
+type Investigation struct {
+	canvas Canvas
+}
+
+func (investigation Investigation) communicate(url string) io.ReadCloser {
+
+	// get url
+	resp, err := http.Get(url)
+
+	// catch error
+	if err != nil {
+		fmt.Println("ERROR: Failed to crawl \"" + url + "\"")
+		return nil
+	}
+
+	// return body
+	return resp.Body
+}
+
+func (investigation Investigation) getArtists(letter_url string) {
 
 	// set regular expression for letter suburls
 	artists, _ := regexp.Compile("^artist/.*$")
 
 	// set body
-	b := communicate(letter_url)
+	b := investigation.communicate(letter_url)
 	defer b.Close()
 
 	// declare tokenizer
@@ -74,11 +93,10 @@ func getArtists(letter_url string) {
 							fmt.Println()
 
 							// add artist
-							addArtist(artist_name)
+							investigation.canvas.addArtist(artist_name)
 
 							// parse the artist
-							parseArtist(artist_url, artist_name)
-
+							investigation.parseArtist(artist_url, artist_name)
 						}
 					}
 				}
@@ -87,10 +105,10 @@ func getArtists(letter_url string) {
 	}
 }
 
-func parseArtist(artist_url, artist_name string) {
+func (investigation Investigation) parseArtist(artist_url, artist_name string) {
 
 	// set body
-	b := communicate(artist_url)
+	b := investigation.communicate(artist_url)
 	defer b.Close()
 
 	// declare tokenizer
@@ -133,10 +151,10 @@ func parseArtist(artist_url, artist_name string) {
 						fmt.Println("\t", album_title)
 
 						// add album
-						addAlbum(artist_name, album_title)
+						investigation.canvas.addAlbum(artist_name, album_title)
 
 						// parse album
-						parseAlbum(album_url, album_title)
+						investigation.parseAlbum(album_url, album_title)
 					}
 				}
 			}
@@ -144,10 +162,10 @@ func parseArtist(artist_url, artist_name string) {
 	}
 }
 
-func parseAlbum(album_url, album_title string) {
+func (investigation Investigation) parseAlbum(album_url, album_title string) {
 
 	// set body
-	b := communicate(album_url)
+	b := investigation.communicate(album_url)
 	defer b.Close()
 
 	// declare tokenizer
@@ -192,7 +210,7 @@ func parseAlbum(album_url, album_title string) {
 						fmt.Println()
 
 						// parse song
-						parseSong(song_url, song_title, album_title)
+						investigation.parseSong(song_url, song_title, album_title)
 					}
 				}
 			}
@@ -200,10 +218,10 @@ func parseAlbum(album_url, album_title string) {
 	}
 }
 
-func parseSong(song_url, song_title, album_title string) {
+func (investigation Investigation) parseSong(song_url, song_title, album_title string) {
 
 	// set body
-	b := communicate(song_url)
+	b := investigation.communicate(song_url)
 	defer b.Close()
 
 	// declare tokenizer
@@ -237,31 +255,20 @@ func parseSong(song_url, song_title, album_title string) {
 				fmt.Println()
 
 				// add song to db
-				addSong(album_title, song_title, lyrics)
+				go investigation.canvas.addSong(album_title, song_title, lyrics)
 			}
 		}
 	}
 
 }
 
-func communicate(url string) io.ReadCloser {
-
-	// get url
-	resp, err := http.Get(url)
-
-	// catch error
-	if err != nil {
-		fmt.Println("ERROR: Failed to crawl \"" + url + "\"")
-		return nil
-	}
-
-	// return body
-	return resp.Body
+type Canvas struct {
+	name string
 }
 
-func prepareDB() *sql.DB {
+func (canvas Canvas) prepareDB() *sql.DB {
 
-	db, err := sql.Open("sqlite3", "lyrics_net.db")
+	db, err := sql.Open("sqlite3", canvas.name + ".db")
 	if err != nil {
 		fmt.Println("ERROR: Failed to open db:", err)
 	}
@@ -269,9 +276,9 @@ func prepareDB() *sql.DB {
 	return db
 }
 
-func initiateDB() {
+func (canvas Canvas) initiateDB() {
 
-	db := prepareDB()
+	db := canvas.prepareDB()
 	defer db.Close()
 
 	_, err := db.Exec(`create table if not exists artists (
@@ -302,9 +309,9 @@ func initiateDB() {
 	}
 }
 
-func addArtist(artist_name string) {
+func (canvas Canvas) addArtist(artist_name string) {
 
-	db := prepareDB()
+	db := canvas.prepareDB()
 	defer db.Close()
 
 	tx, err := db.Begin()
@@ -319,9 +326,9 @@ func addArtist(artist_name string) {
 	}
 }
 
-func addAlbum(artist_name, album_title string) {
+func (canvas Canvas) addAlbum(artist_name, album_title string) {
 
-	db := prepareDB()
+	db := canvas.prepareDB()
 	defer db.Close()
 
 	tx, err := db.Begin()
@@ -336,9 +343,9 @@ func addAlbum(artist_name, album_title string) {
 	}
 }
 
-func addSong(album_title, song_title, lyrics string) {
+func (canvas Canvas) addSong(album_title, song_title, lyrics string) {
 
-	db := prepareDB()
+	db := canvas.prepareDB()
 	defer db.Close()
 
 	tx, err := db.Begin()
@@ -353,15 +360,15 @@ func addSong(album_title, song_title, lyrics string) {
 	}
 }
 
-func main() {
+func (investigation Investigation) investigate() {
 
-	initiateDB()
+	investigation.canvas.initiateDB()
 
 	// set regular expression for letter suburls
 	letters, _ := regexp.Compile("^/artists/[0A-Z]$")
 
 	// set body
-	b := communicate(url)
+	b := investigation.communicate(url)
 	defer b.Close()
 
 	// declare tokenizer
@@ -399,7 +406,7 @@ func main() {
 							letter_url := url + a.Val + "/99999"
 
 							// get artists
-							getArtists(letter_url)
+							investigation.getArtists(letter_url)
 
 						}
 					}
@@ -407,6 +414,15 @@ func main() {
 			}
 		}
 	}
+}
+
+func main() {
+
+	canvas := Canvas{"lyrics_net"}
+
+	investigation := Investigation{canvas}
+
+	investigation.investigate()
 }
 
 //class lyrics_site:	
@@ -545,17 +561,3 @@ func main() {
 //
 //    # shut down instance after finished
 //    system("sudo shutdown -h now")
-//
-//// TODO
-//func get_artists(self) {
-//
-//	canvas, brush = self.prepare()
-//
-//	brush.execute("select name from artists")
-//
-//	artists = [item[0] for item in brush.fetchall()]
-//
-//	canvas.close()
-//
-//	return artists
-//}
