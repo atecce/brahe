@@ -213,20 +213,18 @@ func parseSong(song_url string) {
 		// catch start tags
 		case next == html.StartTagToken:
 
-			// find a tokens
+			// find pre tokens
 			if z.Token().Data == "pre" {
 
+				// next token is lyrics
 				z.Next()
-
 				lyrics := z.Token().Data
 
+				// print lyrics
 				fmt.Println()
-
 				for _, line := range strings.Split(lyrics, "\n") {
-
 					fmt.Println("\t\t\t\t", line)
 				}
-
 				fmt.Println()
 			}
 		}
