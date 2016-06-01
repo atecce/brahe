@@ -255,7 +255,7 @@ func (investigation Investigation) parseSong(song_url, song_title, album_title s
 				fmt.Println()
 
 				// add song to db
-				go investigation.canvas.addSong(album_title, song_title, lyrics)
+				investigation.canvas.addSong(album_title, song_title, lyrics)
 			}
 		}
 	}
