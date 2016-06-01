@@ -268,7 +268,10 @@ type Canvas struct {
 
 func (canvas Canvas) prepareDB() *sql.DB {
 
+	// create db
 	db, err := sql.Open("sqlite3", canvas.name + ".db")
+
+	// catch error
 	if err != nil {
 		fmt.Println("ERROR: Failed to open db:", err)
 	}
@@ -278,9 +281,11 @@ func (canvas Canvas) prepareDB() *sql.DB {
 
 func (canvas Canvas) initiateDB() {
 
+	// prepare db
 	db := canvas.prepareDB()
 	defer db.Close()
 
+	// create tables
 	_, err := db.Exec(`create table if not exists artists (
 								  
 				  name text not null, 	  
@@ -304,6 +309,7 @@ func (canvas Canvas) initiateDB() {
 				 primary key (album_title, title),
 				 foreign key (album_title) references albums (title))`)
 
+	// catch error
 	if err != nil {
 		fmt.Println("ERROR: Failed to create tables:", err)
 	}
@@ -311,16 +317,18 @@ func (canvas Canvas) initiateDB() {
 
 func (canvas Canvas) addArtist(artist_name string) {
 
+	// prepare db
 	db := canvas.prepareDB()
 	defer db.Close()
-
 	tx, err := db.Begin()
 
+	// insert entry
 	stmt, err := tx.Prepare("insert or replace into artists (name) values (?)")
 	defer stmt.Close()
 	_, err = stmt.Exec(artist_name)
 	tx.Commit()
 
+	// catch error
 	if err != nil {
 		fmt.Println("ERROR: Failed to add artist:", err)
 	}
@@ -328,16 +336,18 @@ func (canvas Canvas) addArtist(artist_name string) {
 
 func (canvas Canvas) addAlbum(artist_name, album_title string) {
 
+	// prepare db
 	db := canvas.prepareDB()
 	defer db.Close()
-
 	tx, err := db.Begin()
 
+	// insert entry
 	stmt, err := tx.Prepare("insert or replace into albums (artist_name, title) values (?, ?)")
 	defer stmt.Close()
 	_, err = stmt.Exec(artist_name, album_title)
 	tx.Commit()
 
+	// catch error
 	if err != nil {
 		fmt.Println("ERROR: Failed to add album:", err)
 	}
@@ -345,16 +355,18 @@ func (canvas Canvas) addAlbum(artist_name, album_title string) {
 
 func (canvas Canvas) addSong(album_title, song_title, lyrics string) {
 
+	// prepare db
 	db := canvas.prepareDB()
 	defer db.Close()
-
 	tx, err := db.Begin()
 
+	// insert entry
 	stmt, err := tx.Prepare("insert or replace into songs (album_title, title, lyrics) values (?, ?, ?)")
 	defer stmt.Close()
 	_, err = stmt.Exec(album_title, song_title, lyrics)
 	tx.Commit()
 
+	// catch error
 	if err != nil {
 		fmt.Println("ERROR: Failed to add song:", err)
 	}
@@ -362,6 +374,7 @@ func (canvas Canvas) addSong(album_title, song_title, lyrics string) {
 
 func (investigation Investigation) investigate() {
 
+	// initiate db
 	investigation.canvas.initiateDB()
 
 	// set regular expression for letter suburls
@@ -407,7 +420,6 @@ func (investigation Investigation) investigate() {
 
 							// get artists
 							investigation.getArtists(letter_url)
-
 						}
 					}
 				}
@@ -418,10 +430,13 @@ func (investigation Investigation) investigate() {
 
 func main() {
 
+	// set canvas
 	canvas := Canvas{"lyrics_net"}
 
+	// prepare the investigation
 	investigation := Investigation{canvas}
 
+	// start the investigation
 	investigation.investigate()
 }
 
