@@ -6,8 +6,10 @@
 package main
 
 import (
+	"database/sql"
 	"io"
 	"fmt"
+	_ "github.com/mattn/go-sqlite3"
 	"golang.org/x/net/html"
 	"net/http"
 	"regexp"
@@ -63,7 +65,7 @@ func getArtists(letter_url string) {
 
 							// next token is artist name
 							z.Next()
-							artist_name := z.Token()
+							artist_name := z.Token().Data
 
 							// display
 							fmt.Println()
@@ -71,8 +73,11 @@ func getArtists(letter_url string) {
 							fmt.Println(artist_name)
 							fmt.Println()
 
+							// add artist
+							addArtist(artist_name)
+
 							// parse the artist
-							parseArtist(artist_url)
+							parseArtist(artist_url, artist_name)
 
 						}
 					}
@@ -82,7 +87,7 @@ func getArtists(letter_url string) {
 	}
 }
 
-func parseArtist(artist_url string) {
+func parseArtist(artist_url, artist_name string) {
 
 	// set body
 	b := communicate(artist_url)
@@ -124,10 +129,14 @@ func parseArtist(artist_url string) {
 
 						// album titles are the next token
 						z.Next()
-						fmt.Println("\t", z.Token())
+						album_title := z.Token().Data
+						fmt.Println("\t", album_title)
+
+						// add album
+						addAlbum(artist_name, album_title)
 
 						// parse album
-						parseAlbum(album_url)
+						parseAlbum(album_url, album_title)
 					}
 				}
 			}
@@ -135,7 +144,7 @@ func parseArtist(artist_url string) {
 	}
 }
 
-func parseAlbum(album_url string) {
+func parseAlbum(album_url, album_title string) {
 
 	// set body
 	b := communicate(album_url)
@@ -174,16 +183,16 @@ func parseAlbum(album_url string) {
 
 						// next token is artist name
 						z.Next()
-						song_name := z.Token()
+						song_title := z.Token().Data
 
 						// display
 						fmt.Println()
 						fmt.Println("\t\t\t", song_url)
-						fmt.Println("\t\t\t", song_name)
+						fmt.Println("\t\t\t", song_title)
 						fmt.Println()
 
 						// parse song
-						parseSong(song_url)
+						parseSong(song_url, song_title, album_title)
 					}
 				}
 			}
@@ -191,7 +200,7 @@ func parseAlbum(album_url string) {
 	}
 }
 
-func parseSong(song_url string) {
+func parseSong(song_url, song_title, album_title string) {
 
 	// set body
 	b := communicate(song_url)
@@ -226,6 +235,9 @@ func parseSong(song_url string) {
 					fmt.Println("\t\t\t\t", line)
 				}
 				fmt.Println()
+
+				// add song to db
+				addSong(album_title, song_title, lyrics)
 			}
 		}
 	}
@@ -247,7 +259,103 @@ func communicate(url string) io.ReadCloser {
 	return resp.Body
 }
 
+func prepareDB() *sql.DB {
+
+	db, err := sql.Open("sqlite3", "lyrics_net.db")
+	if err != nil {
+		fmt.Println("ERROR: Failed to open db:", err)
+	}
+
+	return db
+}
+
+func initiateDB() {
+
+	db := prepareDB()
+	defer db.Close()
+
+	_, err := db.Exec(`create table if not exists artists (
+								  
+				  name text not null, 	  
+				          			  
+				  primary key (name))`)
+
+	_, err = db.Exec(`create table if not exists albums ( 		
+									
+				 title       text not null, 			
+				 artist_name text not null,  		
+				       					
+				 primary key (title, artist_name), 				
+				 foreign key (artist_name) references artists (name))`)
+
+	_, err = db.Exec(`create table if not exists songs ( 	    	       
+								       
+				 title       text not null, 	    	       
+				 album_title text not null, 	    	       
+				 lyrics      text, 			    	       
+				       				       
+				 primary key (album_title, title),
+				 foreign key (album_title) references albums (title))`)
+
+	if err != nil {
+		fmt.Println("ERROR: Failed to create tables:", err)
+	}
+}
+
+func addArtist(artist_name string) {
+
+	db := prepareDB()
+	defer db.Close()
+
+	tx, err := db.Begin()
+
+	stmt, err := tx.Prepare("insert or replace into artists (name) values (?)")
+	defer stmt.Close()
+	_, err = stmt.Exec(artist_name)
+	tx.Commit()
+
+	if err != nil {
+		fmt.Println("ERROR: Failed to add artist:", err)
+	}
+}
+
+func addAlbum(artist_name, album_title string) {
+
+	db := prepareDB()
+	defer db.Close()
+
+	tx, err := db.Begin()
+
+	stmt, err := tx.Prepare("insert or replace into albums (artist_name, title) values (?, ?)")
+	defer stmt.Close()
+	_, err = stmt.Exec(artist_name, album_title)
+	tx.Commit()
+
+	if err != nil {
+		fmt.Println("ERROR: Failed to add album:", err)
+	}
+}
+
+func addSong(album_title, song_title, lyrics string) {
+
+	db := prepareDB()
+	defer db.Close()
+
+	tx, err := db.Begin()
+
+	stmt, err := tx.Prepare("insert or replace into songs (album_title, title, lyrics) values (?, ?, ?)")
+	defer stmt.Close()
+	_, err = stmt.Exec(album_title, song_title, lyrics)
+	tx.Commit()
+
+	if err != nil {
+		fmt.Println("ERROR: Failed to add song:", err)
+	}
+}
+
 func main() {
+
+	initiateDB()
 
 	// set regular expression for letter suburls
 	letters, _ := regexp.Compile("^/artists/[0A-Z]$")
@@ -437,3 +545,17 @@ func main() {
 //
 //    # shut down instance after finished
 //    system("sudo shutdown -h now")
+//
+//// TODO
+//func get_artists(self) {
+//
+//	canvas, brush = self.prepare()
+//
+//	brush.execute("select name from artists")
+//
+//	artists = [item[0] for item in brush.fetchall()]
+//
+//	canvas.close()
+//
+//	return artists
+//}
