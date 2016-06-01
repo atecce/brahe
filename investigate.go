@@ -11,6 +11,7 @@ import (
 	"golang.org/x/net/html"
 	"net/http"
 	"regexp"
+	"strings"
 )
 
 // get url
@@ -66,7 +67,8 @@ func getArtists(letter_url string) {
 
 							// display
 							fmt.Println()
-							fmt.Println(artist_name, artist_url)
+							fmt.Println(artist_url)
+							fmt.Println(artist_name)
 							fmt.Println()
 
 							// parse the artist
@@ -111,21 +113,125 @@ func parseArtist(artist_url string) {
 					if a.Key == "class" && a.Val == "artist-album-label" {
 
 						// album links are next token
+						var album_url string
 						z.Next()
 						for _, album_attribute := range z.Token().Attr {
 							if album_attribute.Key == "href" {
-								fmt.Println("\t", url + album_attribute.Val)
+								album_url = url + album_attribute.Val
+								fmt.Println("\t", album_url)
 							}
 						}
 
 						// album titles are the next token
 						z.Next()
 						fmt.Println("\t", z.Token())
+
+						// parse album
+						parseAlbum(album_url)
 					}
 				}
 			}
 		}
 	}
+}
+
+func parseAlbum(album_url string) {
+
+	// set body
+	b := communicate(album_url)
+	defer b.Close()
+
+	// declare tokenizer
+	z := html.NewTokenizer(b)
+
+	for {
+		// get next token
+		next := z.Next()
+
+		switch {
+
+		// catch error
+		case next == html.ErrorToken:
+			return
+
+		// catch start tags
+		case next == html.StartTagToken:
+
+			// find strong tokens
+			if z.Token().Data == "strong" {
+
+				// get next token
+				z.Next()
+
+				// iterate over token
+				for _, a := range z.Token().Attr {
+
+					// if the link is inside
+					if a.Key == "href" {
+
+						// concatenate the url
+						song_url := url + a.Val
+
+						// next token is artist name
+						z.Next()
+						song_name := z.Token()
+
+						// display
+						fmt.Println()
+						fmt.Println("\t\t\t", song_url)
+						fmt.Println("\t\t\t", song_name)
+						fmt.Println()
+
+						// parse song
+						parseSong(song_url)
+					}
+				}
+			}
+		}
+	}
+}
+
+func parseSong(song_url string) {
+
+	// set body
+	b := communicate(song_url)
+	defer b.Close()
+
+	// declare tokenizer
+	z := html.NewTokenizer(b)
+
+	for {
+		// get next token
+		next := z.Next()
+
+		switch {
+
+		// catch error
+		case next == html.ErrorToken:
+			return
+
+		// catch start tags
+		case next == html.StartTagToken:
+
+			// find a tokens
+			if z.Token().Data == "pre" {
+
+				z.Next()
+
+				lyrics := z.Token().Data
+
+				fmt.Println()
+
+				for _, line := range strings.Split(lyrics, "\n") {
+
+					fmt.Println("\t\t\t\t", line)
+				}
+
+				fmt.Println()
+			}
+		}
+	}
+
 }
 
 func communicate(url string) io.ReadCloser {
@@ -268,40 +374,6 @@ func main() {
 //            self.multitask('artists', self.honor, artist_name, (artist_name, artist_url,))
 //
 //    def honor(self, artist_name, artist_url):
-//
-//        # get the soup
-//        artist_soup = self.communicate(artist_url)
-//
-//        # add the artist to the canvas
-//        self.canvas.add_artist(artist_name)
-//
-//        # get the album items
-//        album_items = artist_soup.find_all('div', {'class': 'clearfix'})
-//
-//        # for each item
-//        for item in album_items: 
-//
-//            # check for a header
-//            if item.h3:
-//
-//                # check the header contains a link
-//                if item.h3.a:
-//
-//                    # set the album information
-//                    album_title = item.h3.a.text
-//                    album_url   = urljoin(self.url, item.h3.a.get('href'))
-//
-//                    if self.verbose:
-//
-//                        print '\t', album_title
-//                        print '\t', album_url
-//                        print
-//
-//                    # add the album to the canvas
-//                    self.canvas.add_album(artist_name, album_title)
-//
-//                    # get the soup
-//                    album_soup = self.communicate(album_url)
 //
 //                    # handle Dorothy (which do not return the proper status code)
 //                    if album_soup.find_all('body', {'id': 's4-page-homepage'}): 
