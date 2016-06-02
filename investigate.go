@@ -14,13 +14,10 @@ import (
 	"net/http"
 	"regexp"
 	"strings"
-	"sync"
 )
 
 // get url
 var url string = "http://www.lyrics.net"
-
-var wg sync.WaitGroup
 
 type Investigation struct {
 	canvas Canvas
@@ -156,7 +153,6 @@ func (investigation Investigation) getArtists(letter_url string) {
 
 							// parse the artist
 							investigation.parseArtist(artist_url, artist_name)
-							wg.Wait()
 						}
 					}
 				}
@@ -214,11 +210,7 @@ func (investigation Investigation) parseArtist(artist_url, artist_name string) {
 						investigation.canvas.addAlbum(artist_name, album_title)
 
 						// parse album
-						wg.Add(1)
-						go func(album_url, album_title string) {
-							defer wg.Done()
-							investigation.parseAlbum(album_url, album_title)
-						}(album_url, album_title)
+						investigation.parseAlbum(album_url, album_title)
 					}
 				}
 			}
