@@ -14,10 +14,13 @@ import (
 	"net/http"
 	"regexp"
 	"strings"
+	"sync"
 )
 
 // get url
 var url string = "http://www.lyrics.net"
+
+var wg sync.WaitGroup
 
 type Investigation struct {
 	canvas Canvas
@@ -36,6 +39,62 @@ func (investigation Investigation) communicate(url string) io.ReadCloser {
 
 	// return body
 	return resp.Body
+}
+
+func (investigation Investigation) investigate() {
+
+	// initiate db
+	investigation.canvas.initiateDB()
+
+	// set regular expression for letter suburls
+	letters, _ := regexp.Compile("^/artists/[0A-Z]$")
+
+	// set body
+	b := investigation.communicate(url)
+	defer b.Close()
+
+	// declare tokenizer
+	z := html.NewTokenizer(b)
+
+	for {
+		// get next token
+		next := z.Next()
+
+		switch {
+
+		// catch error
+		case next == html.ErrorToken:
+			return
+
+		// catch start tags
+		case next == html.StartTagToken:
+
+			// set token
+			t := z.Token()
+
+			// find a tokens
+			if t.Data == "a" {
+
+				// iterate over token
+				for _, a := range t.Attr {
+
+					// if the link is inside
+					if a.Key == "href" {
+
+						// and the link matches the letters
+						if letters.MatchString(a.Val) {
+
+							// concatenate the url
+							letter_url := url + a.Val + "/99999"
+
+							// get artists
+							investigation.getArtists(letter_url)
+						}
+					}
+				}
+			}
+		}
+	}
 }
 
 func (investigation Investigation) getArtists(letter_url string) {
@@ -97,6 +156,7 @@ func (investigation Investigation) getArtists(letter_url string) {
 
 							// parse the artist
 							investigation.parseArtist(artist_url, artist_name)
+							wg.Wait()
 						}
 					}
 				}
@@ -154,7 +214,11 @@ func (investigation Investigation) parseArtist(artist_url, artist_name string) {
 						investigation.canvas.addAlbum(artist_name, album_title)
 
 						// parse album
-						investigation.parseAlbum(album_url, album_title)
+						wg.Add(1)
+						go func(album_url, album_title string) {
+							defer wg.Done()
+							investigation.parseAlbum(album_url, album_title)
+						}(album_url, album_title)
 					}
 				}
 			}
@@ -184,14 +248,27 @@ func (investigation Investigation) parseAlbum(album_url, album_title string) {
 		// catch start tags
 		case next == html.StartTagToken:
 
+			t := z.Token()
+
+			// check for home page TODO handle these
+			if t.Data == "body" {
+				for _, a := range t.Attr {
+					if a.Key == "id" && a.Val =="s4-page-homepage" {
+						return
+					}
+				}
+			}
+
 			// find strong tokens
-			if z.Token().Data == "strong" {
+			if t.Data == "strong" {
 
 				// get next token
 				z.Next()
 
+				t := z.Token()
+
 				// iterate over token
-				for _, a := range z.Token().Attr {
+				for _, a := range t.Attr {
 
 					// if the link is inside
 					if a.Key == "href" {
@@ -259,7 +336,6 @@ func (investigation Investigation) parseSong(song_url, song_title, album_title s
 			}
 		}
 	}
-
 }
 
 type Canvas struct {
@@ -369,62 +445,6 @@ func (canvas Canvas) addSong(album_title, song_title, lyrics string) {
 	// catch error
 	if err != nil {
 		fmt.Println("ERROR: Failed to add song:", err)
-	}
-}
-
-func (investigation Investigation) investigate() {
-
-	// initiate db
-	investigation.canvas.initiateDB()
-
-	// set regular expression for letter suburls
-	letters, _ := regexp.Compile("^/artists/[0A-Z]$")
-
-	// set body
-	b := investigation.communicate(url)
-	defer b.Close()
-
-	// declare tokenizer
-	z := html.NewTokenizer(b)
-
-	for {
-		// get next token
-		next := z.Next()
-
-		switch {
-
-		// catch error
-		case next == html.ErrorToken:
-			return
-
-		// catch start tags
-		case next == html.StartTagToken:
-
-			// set token
-			t := z.Token()
-
-			// find a tokens
-			if t.Data == "a" {
-
-				// iterate over token
-				for _, a := range t.Attr {
-
-					// if the link is inside
-					if a.Key == "href" {
-
-						// and the link matches the letters
-						if letters.MatchString(a.Val) {
-
-							// concatenate the url
-							letter_url := url + a.Val + "/99999"
-
-							// get artists
-							investigation.getArtists(letter_url)
-						}
-					}
-				}
-			}
-		}
 	}
 }
 
