@@ -138,12 +138,9 @@ func (investigation Investigation) getArtists(letter_url string) {
 							// concatenate the url
 							artist_url := url + "/" + a.Val
 
-							// next token is artist name TODO better way, skip empty artists
+							// next token is artist name
 							z.Next()
 							artist_name := z.Token().Data
-
-							// add artist
-							investigation.canvas.addArtist(artist_name)
 
 							// parse the artist
 							investigation.parseArtist(artist_url, artist_name)
@@ -156,6 +153,9 @@ func (investigation Investigation) getArtists(letter_url string) {
 }
 
 func (investigation Investigation) parseArtist(artist_url, artist_name string) {
+
+	// initialize artist flag
+	var artistAdded bool
 
 	// set body
 	status, b := investigation.communicate(artist_url)
@@ -186,6 +186,12 @@ func (investigation Investigation) parseArtist(artist_url, artist_name string) {
 			if t.Data == "h3" {
 				for _, a := range t.Attr {
 					if a.Key == "class" && a.Val == "artist-album-label" {
+
+						// add artist
+						if !artistAdded {
+							investigation.canvas.addArtist(artist_name)
+							artistAdded = true
+						}
 
 						// album links are next token
 						var album_url string
