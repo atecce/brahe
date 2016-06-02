@@ -13,7 +13,7 @@ import (
 	"io"
 	"net/http"
 	"regexp"
-//	"strings"
+	"strings"
 )
 
 // get url
