@@ -7,7 +7,6 @@ package main
 
 import (
 	"database/sql"
-	"io"
 	"fmt"
 	_ "github.com/mattn/go-sqlite3"
 	"golang.org/x/net/html"
@@ -23,7 +22,7 @@ type Investigation struct {
 	canvas Canvas
 }
 
-func (investigation Investigation) communicate(url string) io.ReadCloser {
+func (investigation Investigation) communicate(url string) *http.Response {
 
 	// get url
 	resp, err := http.Get(url)
@@ -35,7 +34,7 @@ func (investigation Investigation) communicate(url string) io.ReadCloser {
 	}
 
 	// return body
-	return resp.Body
+	return resp
 }
 
 func (investigation Investigation) investigate() {
@@ -47,7 +46,8 @@ func (investigation Investigation) investigate() {
 	letters, _ := regexp.Compile("^/artists/[0A-Z]$")
 
 	// set body
-	b := investigation.communicate(url)
+	resp := investigation.communicate(url)
+	b := resp.Body
 	defer b.Close()
 
 	// declare tokenizer
@@ -100,7 +100,8 @@ func (investigation Investigation) getArtists(letter_url string) {
 	artists, _ := regexp.Compile("^artist/.*$")
 
 	// set body
-	b := investigation.communicate(letter_url)
+	resp := investigation.communicate(letter_url)
+	b := resp.Body
 	defer b.Close()
 
 	// declare tokenizer
@@ -138,15 +139,9 @@ func (investigation Investigation) getArtists(letter_url string) {
 							// concatenate the url
 							artist_url := url + "/" + a.Val
 
-							// next token is artist name
+							// next token is artist name TODO better way, skip empty artists
 							z.Next()
 							artist_name := z.Token().Data
-
-							// display
-							fmt.Println()
-							fmt.Println(artist_url)
-							fmt.Println(artist_name)
-							fmt.Println()
 
 							// add artist
 							investigation.canvas.addArtist(artist_name)
@@ -164,7 +159,10 @@ func (investigation Investigation) getArtists(letter_url string) {
 func (investigation Investigation) parseArtist(artist_url, artist_name string) {
 
 	// set body
-	b := investigation.communicate(artist_url)
+	resp := investigation.communicate(artist_url)
+	fmt.Println()
+	fmt.Println(artist_name, artist_url, resp.StatusCode)
+	b := resp.Body
 	defer b.Close()
 
 	// declare tokenizer
@@ -197,14 +195,12 @@ func (investigation Investigation) parseArtist(artist_url, artist_name string) {
 						for _, album_attribute := range z.Token().Attr {
 							if album_attribute.Key == "href" {
 								album_url = url + album_attribute.Val
-								fmt.Println("\t", album_url)
 							}
 						}
 
 						// album titles are the next token
 						z.Next()
 						album_title := z.Token().Data
-						fmt.Println("\t", album_title)
 
 						// add album
 						investigation.canvas.addAlbum(artist_name, album_title)
@@ -221,7 +217,10 @@ func (investigation Investigation) parseArtist(artist_url, artist_name string) {
 func (investigation Investigation) parseAlbum(album_url, album_title string) {
 
 	// set body
-	b := investigation.communicate(album_url)
+	resp := investigation.communicate(album_url)
+	b := resp.Body
+	fmt.Println()
+	fmt.Println("\t", album_title, album_url, resp.StatusCode)
 	defer b.Close()
 
 	// declare tokenizer
@@ -272,12 +271,6 @@ func (investigation Investigation) parseAlbum(album_url, album_title string) {
 						z.Next()
 						song_title := z.Token().Data
 
-						// display
-						fmt.Println()
-						fmt.Println("\t\t\t", song_url)
-						fmt.Println("\t\t\t", song_title)
-						fmt.Println()
-
 						// parse song
 						investigation.parseSong(song_url, song_title, album_title)
 					}
@@ -290,7 +283,10 @@ func (investigation Investigation) parseAlbum(album_url, album_title string) {
 func (investigation Investigation) parseSong(song_url, song_title, album_title string) {
 
 	// set body
-	b := investigation.communicate(song_url)
+	resp := investigation.communicate(song_url)
+	b := resp.Body
+	fmt.Println()
+	fmt.Println("\t\t\t", song_title, song_url, resp.StatusCode)
 	defer b.Close()
 
 	// declare tokenizer
