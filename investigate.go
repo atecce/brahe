@@ -13,7 +13,7 @@ import (
 	"io"
 	"net/http"
 	"regexp"
-	"strings"
+//	"strings"
 )
 
 // get url
@@ -210,7 +210,49 @@ func (investigation Investigation) parseArtist(artist_url, artist_name string) {
 						investigation.canvas.addAlbum(artist_name, album_title)
 
 						// parse album
-						investigation.parseAlbum(album_url, album_title)
+						dorothy := investigation.parseAlbum(album_url, album_title)
+
+						// handle dorothy
+						if dorothy {
+							for {
+
+								var finished bool
+
+								z.Next()
+
+								t = z.Token()
+
+								if t.Data == "div" {
+									for _, a := range t.Attr {
+										if a.Key == "class" && a.Val == "clearfix" {
+											finished = true
+										}
+									}
+								}
+
+								if finished {
+									break
+								}
+
+								if t.Data == "strong" {
+									z.Next()
+									for _, a := range z.Token().Attr {
+										if a.Key == "href" {
+
+											// concatenate the url
+											song_url := url + a.Val
+
+											// next token is artist name
+											z.Next()
+											song_title := z.Token().Data
+
+											// parse song
+											investigation.parseSong(song_url, song_title, album_title)
+										}
+									}
+								}
+							}
+						}
 					}
 				}
 			}
@@ -218,7 +260,7 @@ func (investigation Investigation) parseArtist(artist_url, artist_name string) {
 	}
 }
 
-func (investigation Investigation) parseAlbum(album_url, album_title string) {
+func (investigation Investigation) parseAlbum(album_url, album_title string) bool {
 
 	// set body
 	status, b := investigation.communicate(album_url)
@@ -237,18 +279,19 @@ func (investigation Investigation) parseAlbum(album_url, album_title string) {
 
 		// catch error
 		case next == html.ErrorToken:
-			return
+			return false
 
 		// catch start tags
 		case next == html.StartTagToken:
 
+			// set token
 			t := z.Token()
 
-			// check for home page TODO handle these
+			// check for home page
 			if t.Data == "body" {
 				for _, a := range t.Attr {
 					if a.Key == "id" && a.Val =="s4-page-homepage" {
-						return
+						return true
 					}
 				}
 			}
@@ -258,8 +301,7 @@ func (investigation Investigation) parseAlbum(album_url, album_title string) {
 
 				// get next token
 				z.Next()
-
-				t := z.Token()
+				t = z.Token()
 
 				// iterate over token
 				for _, a := range t.Attr {
