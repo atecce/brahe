@@ -37,17 +37,14 @@ func communicate(url string) io.ReadCloser {
 		// check status codes
 		if resp.StatusCode == 200 {
 			return resp.Body
-		} else if resp.StatusCode == 404 {
-			fmt.Println("Forbidden link.")
-			return resp.Body
 		} else if resp.StatusCode == 503 {
-			fmt.Println("Overloaded server.")
+			fmt.Println(url, "Overloaded server.")
 			time.Sleep(30 * time.Minute)
 		} else if resp.StatusCode == 504 {
-			fmt.Println("Gateway timeout.")
+			fmt.Println(url, "Gateway timeout.")
 			time.Sleep(time.Minute)
 		} else {
-			fmt.Println("Other status code:", resp.StatusCode)
+			fmt.Println(url, "Other status code:", resp.StatusCode)
 			time.Sleep(time.Minute)
 		}
 	}
