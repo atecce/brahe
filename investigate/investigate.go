@@ -7,6 +7,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"lyrics_net"
 	"os"
 )
