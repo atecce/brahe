@@ -21,16 +21,17 @@ import (
 // get url
 var url string = "http://www.lyrics.net"
 
-func communicate(url string) io.ReadCloser {
+func communicate(url string) (bool, io.ReadCloser) {
 
+	// open file
 	f, err := os.OpenFile("statuses.txt", os.O_APPEND|os.O_WRONLY, 0644)
+	defer f.Close()
 
 	// catch error
 	if err != nil {
 		fmt.Println("ERROR: Failed to open file")
-		return nil
+		return false, nil
 	}
-	defer f.Close()
 
 
 	// never stop trying
@@ -42,24 +43,25 @@ func communicate(url string) io.ReadCloser {
 		// catch error
 		if err != nil {
 			fmt.Println("ERROR: Failed to crawl \"" + url + "\"")
-			return nil
+			return false, nil
 		}
 
+		// write http request to file
 		_, err = f.WriteString(url + " " + resp.Status + "\n")
 
 		// catch error
 		if err != nil {
 			fmt.Println("ERROR: Failed to write file.")
-			return nil
+			return false, nil
 		}
 
 		// check status codes
 		if resp.StatusCode == 200 {
-			return resp.Body
+			return false, resp.Body
 		} else if resp.StatusCode == 403 {
-			return nil
+			return true, nil
 		} else if resp.StatusCode == 404 {
-			return nil
+			return true, nil
 		} else if resp.StatusCode == 503 {
 			time.Sleep(30 * time.Minute)
 		} else if resp.StatusCode == 504 {
@@ -99,8 +101,13 @@ func Investigate(start string) {
 	letters, _ := regexp.Compile(expression)
 
 	// set body
-	b := communicate(url)
+	skip, b := communicate(url)
 	defer b.Close()
+
+	// check for skip
+	if skip {
+		return
+	}
 
 	// declare tokenizer
 	z := html.NewTokenizer(b)
@@ -159,8 +166,13 @@ func getArtists(start, letter_url string) {
 	artists, _ := regexp.Compile("^artist/.*$")
 
 	// set body
-	b := communicate(letter_url)
+	skip, b := communicate(letter_url)
 	defer b.Close()
+
+	// check for skip
+	if skip {
+		return
+	}
 
 	// declare tokenizer
 	z := html.NewTokenizer(b)
@@ -225,10 +237,15 @@ func parseArtist(artist_url, artist_name string) {
 	var artistAdded bool
 
 	// set body
-	b := communicate(artist_url)
+	skip, b := communicate(artist_url)
 	fmt.Println()
 	fmt.Println(artist_name, artist_url)
 	defer b.Close()
+
+	// check for skip
+	if skip {
+		return
+	}
 
 	// declare tokenizer
 	z := html.NewTokenizer(b)
@@ -332,10 +349,15 @@ func parseArtist(artist_url, artist_name string) {
 func parseAlbum(album_url, album_title string) bool {
 
 	// set body
-	b := communicate(album_url)
+	skip, b := communicate(album_url)
 	fmt.Println()
 	fmt.Println("\t", album_title, album_url)
 	defer b.Close()
+
+	// check for skip
+	if skip {
+		return false
+	}
 
 	// declare tokenizer
 	z := html.NewTokenizer(b)
@@ -397,10 +419,15 @@ func parseAlbum(album_url, album_title string) bool {
 func parseSong(song_url, song_title, album_title string) {
 
 	// set body
-	b := communicate(song_url)
+	skip, b := communicate(song_url)
 	fmt.Println()
 	fmt.Println("\t\t\t", song_title, song_url)
 	defer b.Close()
+
+	// check for skip
+	if skip {
+		return
+	}
 
 	// declare tokenizer
 	z := html.NewTokenizer(b)
