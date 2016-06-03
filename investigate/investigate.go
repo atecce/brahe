@@ -8,9 +8,21 @@ package main
 import (
 	"flag"
 	"lyrics_net"
+	"os"
 )
 
 func main() {
+
+	// touch status file
+	f, err := os.Create("statuses.txt")
+
+	// check error
+	if err != nil {
+		fmt.Println("Failed to create file:", err)
+	}
+
+	// close file
+	f.Close()
 
 	// set start flag
 	start := flag.String("s", "0", "Specify start of crawl.")

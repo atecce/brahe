@@ -24,15 +24,8 @@ var url string = "http://www.lyrics.net"
 func communicate(url string) (bool, io.ReadCloser) {
 
 	// open file
-	f, err := os.OpenFile("statuses.txt", os.O_APPEND|os.O_WRONLY, 0644)
+	f, f_err := os.OpenFile("statuses.txt", os.O_APPEND|os.O_WRONLY, 0600)
 	defer f.Close()
-
-	// catch error
-	if err != nil {
-		fmt.Println("ERROR: Failed to open file")
-		return false, nil
-	}
-
 
 	// never stop trying
 	for {
@@ -40,10 +33,14 @@ func communicate(url string) (bool, io.ReadCloser) {
 		// get url
 		resp, err := http.Get(url)
 
-		// catch error
+		// catch errors
+		if f_err != nil {
+			fmt.Println("ERROR: Failed to open file", f_err)
+			return false, resp.Body
+		}
 		if err != nil {
 			fmt.Println("ERROR: Failed to crawl \"" + url + "\"")
-			return false, nil
+			return false, resp.Body
 		}
 
 		// write http request to file
@@ -52,16 +49,15 @@ func communicate(url string) (bool, io.ReadCloser) {
 		// catch error
 		if err != nil {
 			fmt.Println("ERROR: Failed to write file.")
-			return false, nil
 		}
 
 		// check status codes
 		if resp.StatusCode == 200 {
 			return false, resp.Body
 		} else if resp.StatusCode == 403 {
-			return true, nil
+			return true, resp.Body
 		} else if resp.StatusCode == 404 {
-			return true, nil
+			return true, resp.Body
 		} else if resp.StatusCode == 503 {
 			time.Sleep(30 * time.Minute)
 		} else if resp.StatusCode == 504 {
