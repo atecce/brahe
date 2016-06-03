@@ -47,13 +47,41 @@ func communicate(url string) io.ReadCloser {
 	}
 }
 
-func Investigate() {
+//        if self.start == '0': expression = '^/artists/[0A-Z]$'
+//
+//        elif self.start[0] in string.ascii_uppercase:
+//
+//            expression = '^/artists/[' + self.start[0] + '-Z]$'
+//
+//            # check if you've caught up
+//            if re.match("^" + self.url + "artist/" + self.start + ".*/[0-9]*$", artist_url): caught_up = True
+
+func inASCIIupper(start string) bool {
+	for _, char := range "ABCDEFGHIJKLMNOPQRSTUVWXYZ" {
+		if string(char) == start {
+			return true
+		}
+	}
+	return false
+}
+
+func Investigate(start string) {
 
 	// initiate db
 	db.InitiateDB("lyrics_net")
 
+	var expression string
+	if start == "0" || start == "" {
+		expression = "^/artists/[0A-Z]$"
+	} else if inASCIIupper(start) {
+		expression = "^/artists/[" + start + "-Z]$"
+	} else {
+		fmt.Println("Invalid start character.")
+		return
+	}
+
 	// set regular expression for letter suburls
-	letters, _ := regexp.Compile("^/artists/[0A-Z]$")
+	letters, _ := regexp.Compile(expression)
 
 	// set body
 	b := communicate(url)

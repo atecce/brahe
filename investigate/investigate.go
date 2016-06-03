@@ -7,10 +7,14 @@ package main
 
 import (
 	"lyrics_net"
+	"os"
 )
 
 func main() {
 
+	// specify where to start
+	start := os.Args[1]
+
 	// start the investigation
-	lyrics_net.Investigate()
+	lyrics_net.Investigate(start)
 }
