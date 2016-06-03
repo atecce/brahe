@@ -38,11 +38,11 @@ func communicate(url string) io.ReadCloser {
 		if resp.StatusCode == 200 {
 			return resp.Body
 		} else if resp.StatusCode == 503 {
-			time.Sleep(30 * time.Minute)
 			fmt.Println("Overloaded server.")
-		} else {
 			time.Sleep(30 * time.Minute)
+		} else {
 			fmt.Println("Other status code:", resp.StatusCode)
+			time.Sleep(30 * time.Minute)
 		}
 	}
 }
