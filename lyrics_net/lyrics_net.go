@@ -40,6 +40,9 @@ func communicate(url string) io.ReadCloser {
 		} else if resp.StatusCode == 403 {
 			fmt.Println(url, "Forbidden.")
 			return nil
+		} else if resp.StatusCode == 404 {
+			fmt.Println(url, "Not found.")
+			return nil
 		} else if resp.StatusCode == 503 {
 			fmt.Println(url, "Overloaded server.")
 			time.Sleep(30 * time.Minute)
