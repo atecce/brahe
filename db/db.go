@@ -11,10 +11,12 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
+var name string
+
 func PrepareDB() *sql.DB {
 
 	// create db
-	db, err := sql.Open("sqlite3", "lyrics_net.db")
+	db, err := sql.Open("sqlite3", name + ".db")
 
 	// catch error
 	if err != nil {
@@ -24,7 +26,9 @@ func PrepareDB() *sql.DB {
 	return db
 }
 
-func InitiateDB() {
+func InitiateDB(db_name string) {
+
+	name = db_name
 
 	// prepare db
 	db := PrepareDB()

@@ -3,7 +3,7 @@
 // But, if possible, to stimulate someone to thoughts of their own.
 //
 
-package main
+package lyrics_net
 
 import (
 	"db"
@@ -34,10 +34,10 @@ func communicate(url string) (int, io.ReadCloser) {
 	return resp.StatusCode, resp.Body
 }
 
-func investigate() {
+func Investigate() {
 
 	// initiate db
-	db.InitiateDB()
+	db.InitiateDB("lyrics_net")
 
 	// set regular expression for letter suburls
 	letters, _ := regexp.Compile("^/artists/[0A-Z]$")
@@ -366,10 +366,4 @@ func parseSong(song_url, song_title, album_title string) {
 			}
 		}
 	}
-}
-
-func main() {
-
-	// start the investigation
-	investigate()
 }
