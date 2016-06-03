@@ -53,18 +53,9 @@ func communicate(url string) io.ReadCloser {
 	}
 }
 
-//        if self.start == '0': expression = '^/artists/[0A-Z]$'
-//
-//        elif self.start[0] in string.ascii_uppercase:
-//
-//            expression = '^/artists/[' + self.start[0] + '-Z]$'
-//
-//            # check if you've caught up
-//            if re.match("^" + self.url + "artist/" + self.start + ".*/[0-9]*$", artist_url): caught_up = True
-
 func inASCIIupper(start string) bool {
 	for _, char := range "ABCDEFGHIJKLMNOPQRSTUVWXYZ" {
-		if string(char) == start {
+		if string(char) == string(start[0]) {
 			return true
 		}
 	}
@@ -76,11 +67,12 @@ func Investigate(start string) {
 	// initiate db
 	db.InitiateDB("lyrics_net")
 
+	// use specified start letter
 	var expression string
 	if start == "0" || start == "" {
 		expression = "^/artists/[0A-Z]$"
 	} else if inASCIIupper(start) {
-		expression = "^/artists/[" + start + "-Z]$"
+		expression = "^/artists/[" + string(start[0]) + "-Z]$"
 	} else {
 		fmt.Println("Invalid start character.")
 		return
@@ -128,7 +120,7 @@ func Investigate(start string) {
 							letter_url := url + a.Val + "/99999"
 
 							// get artists
-							getArtists(letter_url)
+							getArtists(start, letter_url)
 						}
 					}
 				}
@@ -137,7 +129,14 @@ func Investigate(start string) {
 	}
 }
 
-func getArtists(letter_url string) {
+func getArtists(start, letter_url string) {
+
+	// set caught up expression
+	expression, _ := regexp.Compile("^" + url + "/artist/" + start + ".*/[0-9]*$")
+	var caught_up bool
+	if start == "0" {
+		caught_up = true
+	}
 
 	// set regular expression for letter suburls
 	artists, _ := regexp.Compile("^artist/.*$")
@@ -180,6 +179,14 @@ func getArtists(letter_url string) {
 
 							// concatenate the url
 							artist_url := url + "/" + a.Val
+
+							// check if caught up
+							if expression.MatchString(artist_url) {
+								caught_up = true
+							}
+							if !caught_up {
+								continue
+							}
 
 							// next token is artist name
 							z.Next()
