@@ -6,15 +6,16 @@
 package main
 
 import (
+	"flag"
 	"lyrics_net"
-	"os"
 )
 
 func main() {
 
-	// specify where to start
-	start := os.Args[1]
+	// set start flag
+	start := flag.String("s", "0", "Specify start of crawl.")
+	flag.Parse()
 
 	// start the investigation
-	lyrics_net.Investigate(start)
+	lyrics_net.Investigate(*start)
 }
