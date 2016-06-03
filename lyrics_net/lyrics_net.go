@@ -14,24 +14,37 @@ import (
 	"net/http"
 	"regexp"
 	"strings"
+	"time"
 )
 
 // get url
 var url string = "http://www.lyrics.net"
 
-func communicate(url string) (int, io.ReadCloser) {
+func communicate(url string) io.ReadCloser {
 
-	// get url
-	resp, err := http.Get(url)
+	// never stop trying
+	for {
 
-	// catch error
-	if err != nil {
-		fmt.Println("ERROR: Failed to crawl \"" + url + "\"")
-		return -1, nil
+		// get url
+		resp, err := http.Get(url)
+
+		// catch error
+		if err != nil {
+			fmt.Println("ERROR: Failed to crawl \"" + url + "\"")
+			return nil
+		}
+
+		// check status codes
+		if resp.StatusCode == 200 {
+			return resp.Body
+		} else if resp.StatusCode == 503 {
+			time.Sleep(30 * time.Minute)
+			fmt.Println("Overloaded server.")
+		} else {
+			time.Sleep(30 * time.Minute)
+			fmt.Println("Other status code:", resp.StatusCode)
+		}
 	}
-
-	// return body
-	return resp.StatusCode, resp.Body
 }
 
 func Investigate() {
@@ -43,7 +56,7 @@ func Investigate() {
 	letters, _ := regexp.Compile("^/artists/[0A-Z]$")
 
 	// set body
-	_, b := communicate(url)
+	b := communicate(url)
 	defer b.Close()
 
 	// declare tokenizer
@@ -96,7 +109,7 @@ func getArtists(letter_url string) {
 	artists, _ := regexp.Compile("^artist/.*$")
 
 	// set body
-	_, b := communicate(letter_url)
+	b := communicate(letter_url)
 	defer b.Close()
 
 	// declare tokenizer
@@ -154,9 +167,9 @@ func parseArtist(artist_url, artist_name string) {
 	var artistAdded bool
 
 	// set body
-	status, b := communicate(artist_url)
+	b := communicate(artist_url)
 	fmt.Println()
-	fmt.Println(artist_name, artist_url, status)
+	fmt.Println(artist_name, artist_url)
 	defer b.Close()
 
 	// declare tokenizer
@@ -261,9 +274,9 @@ func parseArtist(artist_url, artist_name string) {
 func parseAlbum(album_url, album_title string) bool {
 
 	// set body
-	status, b := communicate(album_url)
+	b := communicate(album_url)
 	fmt.Println()
-	fmt.Println("\t", album_title, album_url, status)
+	fmt.Println("\t", album_title, album_url)
 	defer b.Close()
 
 	// declare tokenizer
@@ -326,9 +339,9 @@ func parseAlbum(album_url, album_title string) bool {
 func parseSong(song_url, song_title, album_title string) {
 
 	// set body
-	status, b := communicate(song_url)
+	b := communicate(song_url)
 	fmt.Println()
-	fmt.Println("\t\t\t", song_title, song_url, status)
+	fmt.Println("\t\t\t", song_title, song_url)
 	defer b.Close()
 
 	// declare tokenizer
