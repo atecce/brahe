@@ -13,6 +13,7 @@ import (
 	"io"
 	"net/http"
 	"regexp"
+	"os"
 	"strings"
 	"time"
 )
@@ -21,6 +22,16 @@ import (
 var url string = "http://www.lyrics.net"
 
 func communicate(url string) io.ReadCloser {
+
+	f, err := os.OpenFile("statuses.txt", os.O_APPEND|os.O_WRONLY, 0644)
+
+	// catch error
+	if err != nil {
+		fmt.Println("ERROR: Failed to open file")
+		return nil
+	}
+	defer f.Close()
+
 
 	// never stop trying
 	for {
@@ -34,23 +45,26 @@ func communicate(url string) io.ReadCloser {
 			return nil
 		}
 
+		_, err = f.WriteString(url + " " + resp.Status + "\n")
+
+		// catch error
+		if err != nil {
+			fmt.Println("ERROR: Failed to write file.")
+			return nil
+		}
+
 		// check status codes
 		if resp.StatusCode == 200 {
 			return resp.Body
 		} else if resp.StatusCode == 403 {
-			fmt.Println(url, "Forbidden.")
 			return nil
 		} else if resp.StatusCode == 404 {
-			fmt.Println(url, "Not found.")
 			return nil
 		} else if resp.StatusCode == 503 {
-			fmt.Println(url, "Overloaded server.")
 			time.Sleep(30 * time.Minute)
 		} else if resp.StatusCode == 504 {
-			fmt.Println(url, "Gateway timeout.")
 			time.Sleep(time.Minute)
 		} else {
-			fmt.Println(url, "Other status code:", resp.StatusCode)
 			time.Sleep(time.Minute)
 		}
 	}
