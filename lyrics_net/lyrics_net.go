@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"regexp"
 	"os"
-	"strings"
 	"sync"
 	"time"
 )
@@ -458,16 +457,6 @@ func parseSong(verbose bool, song_url, song_title, album_title string) {
 				// next token is lyrics
 				z.Next()
 				lyrics := z.Token().Data
-
-				// print lyrics
-				if verbose {
-
-					fmt.Println()
-					for _, line := range strings.Split(lyrics, "\n") {
-						fmt.Println("\t\t\t\t", line)
-					}
-					fmt.Println()
-				}
 
 				// add song to db
 				db.AddSong(album_title, song_title, lyrics)
