@@ -16,7 +16,7 @@ func PrepareDB() *sql.DB {
 
 	// catch error
 	if err != nil {
-		log.Println("ERROR: Failed to open db:", err)
+		log.Println("Failed to open db", name + ".db:", err)
 	}
 
 	return db
@@ -56,7 +56,7 @@ func InitiateDB(db_name string) {
 
 	// catch error
 	if err != nil {
-		log.Println("ERROR: Failed to create tables:", err)
+		log.Println("Failed to create tables:", err)
 	}
 }
 
@@ -75,8 +75,7 @@ func AddArtist(artist_name string) {
 
 	// catch error
 	if err != nil {
-		log.Println("ERROR: Failed to add artist:", err)
-		log.Println(artist_name)
+		log.Println("Failed to add artist", artist_name + ":", err)
 	}
 }
 
@@ -95,8 +94,7 @@ func AddAlbum(artist_name, album_title string) {
 
 	// catch error
 	if err != nil {
-		log.Println("ERROR: Failed to add album:", err)
-		log.Println(artist_name + ",", album_title)
+		log.Println("Failed to add album", album_title, "by", artist_name+":", err)
 	}
 }
 
@@ -117,8 +115,7 @@ func AddSong(album_title, song_title, lyrics string) {
 
 		// catch error
 		if err != nil {
-			log.Println("ERROR: Failed to add song:", err)
-			log.Println(album_title + ",", song_title)
+			log.Println("Failed to add song", song_title, "in", album_title+":", err)
 			time.Sleep(time.Second)
 			continue
 		}

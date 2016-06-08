@@ -35,11 +35,11 @@ func communicate(url string) (bool, io.ReadCloser) {
 
 		// catch errors
 		if f_err != nil {
-			log.Println("ERROR: Failed to open file:", f_err)
+			log.Println("Failed to open file:", f_err)
 			return false, resp.Body
 		}
 		if err != nil {
-			log.Println("ERROR: Failed to crawl", url + ":", err)
+			log.Println("Failed to crawl", url + ":", err)
 			return false, resp.Body
 		}
 
@@ -48,7 +48,7 @@ func communicate(url string) (bool, io.ReadCloser) {
 
 		// catch error
 		if err != nil {
-			log.Println("ERROR: Failed to write file:", err)
+			log.Println("Failed to write file:", err)
 		}
 
 		// check status codes
