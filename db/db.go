@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	_ "github.com/mattn/go-sqlite3"
+	"time"
 )
 
 var name string
@@ -99,19 +100,26 @@ func AddAlbum(artist_name, album_title string) {
 
 func AddSong(album_title, song_title, lyrics string) {
 
-	// prepare db
-	db := PrepareDB()
-	defer db.Close()
-	tx, err := db.Begin()
+	for {
 
-	// insert entry
-	stmt, err := tx.Prepare("insert or replace into songs (album_title, title, lyrics) values (?, ?, ?)")
-	defer stmt.Close()
-	_, err = stmt.Exec(album_title, song_title, lyrics)
-	tx.Commit()
+		// prepare db
+		db := PrepareDB()
+		defer db.Close()
+		tx, err := db.Begin()
 
-	// catch error
-	if err != nil {
-		fmt.Println("ERROR: Failed to add song:", err)
+		// insert entry
+		stmt, err := tx.Prepare("insert or replace into songs (album_title, title, lyrics) values (?, ?, ?)")
+		defer stmt.Close()
+		_, err = stmt.Exec(album_title, song_title, lyrics)
+		tx.Commit()
+
+		// catch error
+		if err != nil {
+			fmt.Println("ERROR: Failed to add song:", err)
+			time.Sleep(time.Second)
+			continue
+		}
+
+		break
 	}
 }
