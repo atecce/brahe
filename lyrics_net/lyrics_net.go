@@ -38,7 +38,7 @@ func communicate(url string) (bool, io.ReadCloser) {
 			return false, resp.Body
 		}
 		if err != nil {
-			log.Println("Failed to crawl", url + ":", err)
+			log.Println("Failed to crawl:", err)
 			return false, resp.Body
 		}
 
