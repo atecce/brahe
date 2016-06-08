@@ -100,8 +100,9 @@ func AddAlbum(artist_name, album_title string) {
 
 func AddSong(album_title, song_title, lyrics string) {
 
+	var failed bool
+
 	for {
-		var failed bool
 
 		// prepare db
 		db := PrepareDB()
@@ -145,7 +146,7 @@ func AddSong(album_title, song_title, lyrics string) {
 
 		// notify that a previous failure was cleaned up
 		if failed {
-			log.Println("Successfully added song", song_title, "in album", album_title, err)
+			log.Println("Successfully added song", song_title, "in album", album_title)
 		}
 
 		// exit
