@@ -151,7 +151,7 @@ func Investigate(verbose bool, start string) {
 func getArtists(verbose bool, start, letter_url string) {
 
 	// set caught up expression
-	expression, _ := regexp.Compile("^" + url + "/artist/" + start + ".*/[0-9]*$")
+	expression, _ := regexp.Compile("^" + start + ".*$")
 	var caught_up bool
 	if start == "0" {
 		caught_up = true
@@ -204,17 +204,19 @@ func getArtists(verbose bool, start, letter_url string) {
 							// concatenate the url
 							artist_url := url + "/" + a.Val
 
+							// next token is artist name
+							z.Next()
+							artist_name := z.Token().Data
+
 							// check if caught up
-							if expression.MatchString(artist_url) {
+							if expression.MatchString(artist_name) {
 								caught_up = true
 							}
 							if !caught_up {
 								continue
 							}
 
-							// next token is artist name
-							z.Next()
-							artist_name := z.Token().Data
+
 
 							// parse the artist
 							parseArtist(verbose, artist_url, artist_name)

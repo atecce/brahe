@@ -22,7 +22,7 @@ func main() {
 
 	// set start flag
 	verbose := flag.Bool("v", false, "Print the tree as it is parsed.")
-	start := flag.String("s", "0", "Specify start of crawl.")
+	start := flag.String("s", "0", "Specify start artist of crawl.")
 	flag.Parse()
 
 	// start the investigation
