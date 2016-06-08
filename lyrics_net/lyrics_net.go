@@ -10,8 +10,12 @@ import (
 	"regexp"
 	"os"
 	"strings"
+	"sync"
 	"time"
 )
+
+// set wait group
+var wg sync.WaitGroup
 
 // get url
 var url string = "http://www.lyrics.net"
@@ -307,6 +311,7 @@ func parseArtist(artist_url, artist_name string) {
 									}
 								}
 								if finished {
+									wg.Wait()
 									break
 								}
 
@@ -324,7 +329,8 @@ func parseArtist(artist_url, artist_name string) {
 											song_title := z.Token().Data
 
 											// parse song
-											parseSong(song_url, song_title, album_title)
+											wg.Add(1)
+											go parseSong(song_url, song_title, album_title)
 										}
 									}
 								}
@@ -361,6 +367,7 @@ func parseAlbum(album_url, album_title string) bool {
 
 		// catch error
 		case next == html.ErrorToken:
+			wg.Wait()
 			return false
 
 		// catch start tags
@@ -399,7 +406,8 @@ func parseAlbum(album_url, album_title string) bool {
 						song_title := z.Token().Data
 
 						// parse song
-						parseSong(song_url, song_title, album_title)
+						wg.Add(1)
+						go parseSong(song_url, song_title, album_title)
 					}
 				}
 			}
@@ -431,6 +439,7 @@ func parseSong(song_url, song_title, album_title string) {
 
 		// catch error
 		case next == html.ErrorToken:
+			wg.Done()
 			return
 
 		// catch start tags
