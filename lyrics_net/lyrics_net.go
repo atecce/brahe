@@ -89,7 +89,7 @@ func Investigate(verbose bool, start string) {
 	} else if inASCIIupper(start) {
 		expression = "^/artists/[" + string(start[0]) + "-Z]$"
 	} else {
-		fmt.Println("Invalid start character.")
+		log.Println("Invalid start character.")
 		return
 	}
 
@@ -234,8 +234,10 @@ func parseArtist(verbose bool, artist_url, artist_name string) {
 
 	// set body
 	skip, b := communicate(artist_url)
-	fmt.Println()
-	fmt.Println(artist_name, artist_url)
+	if verbose {
+		fmt.Println()
+		fmt.Println(artist_name, artist_url)
+	}
 	defer b.Close()
 
 	// check for skip
@@ -348,8 +350,10 @@ func parseAlbum(verbose bool, album_url, album_title string) bool {
 
 	// set body
 	skip, b := communicate(album_url)
-	fmt.Println()
-	fmt.Println("\t", album_title, album_url)
+	if verbose {
+		fmt.Println()
+		fmt.Println("\t", album_title, album_url)
+	}
 	defer b.Close()
 
 	// check for skip
@@ -420,8 +424,10 @@ func parseSong(verbose bool, song_url, song_title, album_title string) {
 
 	// set body
 	skip, b := communicate(song_url)
-	fmt.Println()
-	fmt.Println("\t\t\t", song_title, song_url)
+	if verbose {
+		fmt.Println()
+		fmt.Println("\t\t\t", song_title, song_url)
+	}
 	defer b.Close()
 
 	// check for skip

@@ -21,7 +21,7 @@ func main() {
 	f.Close()
 
 	// set start flag
-	verbose := flag.Bool("v", false, "Print lyrics.")
+	verbose := flag.Bool("v", false, "Print the tree as it is parsed.")
 	start := flag.String("s", "0", "Specify start of crawl.")
 	flag.Parse()
 
