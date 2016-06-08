@@ -96,7 +96,7 @@ func AddAlbum(artist_name, album_title string) {
 	// catch error
 	if err != nil {
 		log.Println("ERROR: Failed to add album:", err)
-		log.Println(artist_name, album_title)
+		log.Println(artist_name + ",", album_title)
 	}
 }
 
@@ -118,7 +118,7 @@ func AddSong(album_title, song_title, lyrics string) {
 		// catch error
 		if err != nil {
 			log.Println("ERROR: Failed to add song:", err)
-			log.Println(album_title, song_title)
+			log.Println(album_title + ",", song_title)
 			time.Sleep(time.Second)
 			continue
 		}
