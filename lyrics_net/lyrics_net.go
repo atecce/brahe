@@ -6,6 +6,7 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 	"golang.org/x/net/html"
 	"io"
+	"log"
 	"net/http"
 	"regexp"
 	"os"
@@ -34,11 +35,11 @@ func communicate(url string) (bool, io.ReadCloser) {
 
 		// catch errors
 		if f_err != nil {
-			fmt.Println("ERROR: Failed to open file", f_err)
+			log.Println("ERROR: Failed to open file:", f_err)
 			return false, resp.Body
 		}
 		if err != nil {
-			fmt.Println("ERROR: Failed to crawl \"" + url + "\"")
+			log.Println("ERROR: Failed to crawl", url + ":", err)
 			return false, resp.Body
 		}
 
@@ -47,7 +48,7 @@ func communicate(url string) (bool, io.ReadCloser) {
 
 		// catch error
 		if err != nil {
-			fmt.Println("ERROR: Failed to write file.")
+			log.Println("ERROR: Failed to write file:", err)
 		}
 
 		// check status codes
