@@ -101,25 +101,54 @@ func AddAlbum(artist_name, album_title string) {
 func AddSong(album_title, song_title, lyrics string) {
 
 	for {
+		var failed bool
 
 		// prepare db
 		db := PrepareDB()
 		defer db.Close()
 		tx, err := db.Begin()
 
-		// insert entry
+		// catch error
+		if err != nil {
+			failed = true
+			log.Println("\ndb.Begin failed.\nFailed to add song", song_title, "in album", album_title+":", err, "\n")
+			db.Close()
+			time.Sleep(time.Second)
+			continue
+		}
+
+		// prepare statement
 		stmt, err := tx.Prepare("insert or replace into songs (album_title, title, lyrics) values (?, ?, ?)")
 		defer stmt.Close()
+
+		// catch error
+		if err != nil {
+			failed = true
+			log.Println("\ntx.Prepare failed.\nFailed to add song", song_title, "in album", album_title+":", err, "\n")
+			db.Close()
+			time.Sleep(time.Second)
+			continue
+		}
+
+		// execute statement
 		_, err = stmt.Exec(album_title, song_title, lyrics)
 		tx.Commit()
 
 		// catch error
 		if err != nil {
-			log.Println("Failed to add song", song_title, "in", album_title+":", err)
+			failed = true
+			log.Println("\nstmt.Exec failed.\nFailed to add song", song_title, "in album", album_title+":", err, "\n")
+			db.Close()
 			time.Sleep(time.Second)
 			continue
 		}
 
+		// notify that a previous failure was cleaned up
+		if failed {
+			log.Println("Successfully added song", song_title, "in album", album_title, err)
+		}
+
+		// exit
 		break
 	}
 }

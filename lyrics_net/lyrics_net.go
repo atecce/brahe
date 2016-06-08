@@ -354,6 +354,7 @@ func parseAlbum(verbose bool, album_url, album_title string) bool {
 	if verbose {
 		fmt.Println()
 		fmt.Println("\t", album_title, album_url)
+		fmt.Println()
 	}
 	defer b.Close()
 
@@ -426,7 +427,6 @@ func parseSong(verbose bool, song_url, song_title, album_title string) {
 	// set body
 	skip, b := communicate(song_url)
 	if verbose {
-		fmt.Println()
 		fmt.Println("\t\t\t", song_title, song_url)
 	}
 	defer b.Close()
