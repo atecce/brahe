@@ -330,6 +330,9 @@ func parseArtist(artist_url, artist_name string) {
 
 func parseAlbum(album_url, album_title string) bool {
 
+	// initialize flag that checks for songs
+	var has_songs bool
+
 	// set body
 	skip, b := communicate(album_url)
 	defer b.Close()
@@ -351,7 +354,7 @@ func parseAlbum(album_url, album_title string) bool {
 		// catch error
 		case next == html.ErrorToken:
 			wg.Wait()
-			return false
+			return !has_songs
 
 		// catch start tags
 		case next == html.StartTagToken:
@@ -380,6 +383,9 @@ func parseAlbum(album_url, album_title string) bool {
 
 					// if the link is inside
 					if a.Key == "href" {
+
+						// mark that the page has songs
+						has_songs = true
 
 						// concatenate the url
 						song_url := url + a.Val
