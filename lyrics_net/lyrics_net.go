@@ -76,7 +76,7 @@ func inASCIIupper(start string) bool {
 	return false
 }
 
-func Investigate(start string) {
+func Investigate(verbose bool, start string) {
 
 	// initiate db
 	db.InitiateDB("lyrics_net")
@@ -139,7 +139,7 @@ func Investigate(start string) {
 							letter_url := url + a.Val + "/99999"
 
 							// get artists
-							getArtists(start, letter_url)
+							getArtists(verbose, start, letter_url)
 						}
 					}
 				}
@@ -148,7 +148,7 @@ func Investigate(start string) {
 	}
 }
 
-func getArtists(start, letter_url string) {
+func getArtists(verbose bool, start, letter_url string) {
 
 	// set caught up expression
 	expression, _ := regexp.Compile("^" + url + "/artist/" + start + ".*/[0-9]*$")
@@ -217,7 +217,7 @@ func getArtists(start, letter_url string) {
 							artist_name := z.Token().Data
 
 							// parse the artist
-							parseArtist(artist_url, artist_name)
+							parseArtist(verbose, artist_url, artist_name)
 						}
 					}
 				}
@@ -226,7 +226,7 @@ func getArtists(start, letter_url string) {
 	}
 }
 
-func parseArtist(artist_url, artist_name string) {
+func parseArtist(verbose bool, artist_url, artist_name string) {
 
 	// initialize artist flag
 	var artistAdded bool
@@ -289,7 +289,7 @@ func parseArtist(artist_url, artist_name string) {
 						db.AddAlbum(artist_name, album_title)
 
 						// parse album
-						dorothy := parseAlbum(album_url, album_title)
+						dorothy := parseAlbum(verbose, album_url, album_title)
 
 						// handle dorothy
 						if dorothy {
@@ -330,7 +330,7 @@ func parseArtist(artist_url, artist_name string) {
 
 											// parse song
 											wg.Add(1)
-											go parseSong(song_url, song_title, album_title)
+											go parseSong(verbose, song_url, song_title, album_title)
 										}
 									}
 								}
@@ -343,7 +343,7 @@ func parseArtist(artist_url, artist_name string) {
 	}
 }
 
-func parseAlbum(album_url, album_title string) bool {
+func parseAlbum(verbose bool, album_url, album_title string) bool {
 
 	// set body
 	skip, b := communicate(album_url)
@@ -407,7 +407,7 @@ func parseAlbum(album_url, album_title string) bool {
 
 						// parse song
 						wg.Add(1)
-						go parseSong(song_url, song_title, album_title)
+						go parseSong(verbose, song_url, song_title, album_title)
 					}
 				}
 			}
@@ -415,7 +415,7 @@ func parseAlbum(album_url, album_title string) bool {
 	}
 }
 
-func parseSong(song_url, song_title, album_title string) {
+func parseSong(verbose bool, song_url, song_title, album_title string) {
 
 	// set body
 	skip, b := communicate(song_url)
@@ -453,11 +453,14 @@ func parseSong(song_url, song_title, album_title string) {
 				lyrics := z.Token().Data
 
 				// print lyrics
-				fmt.Println()
-				for _, line := range strings.Split(lyrics, "\n") {
-					fmt.Println("\t\t\t\t", line)
+				if verbose {
+
+					fmt.Println()
+					for _, line := range strings.Split(lyrics, "\n") {
+						fmt.Println("\t\t\t\t", line)
+					}
+					fmt.Println()
 				}
-				fmt.Println()
 
 				// add song to db
 				db.AddSong(album_title, song_title, lyrics)

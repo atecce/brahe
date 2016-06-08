@@ -21,9 +21,10 @@ func main() {
 	f.Close()
 
 	// set start flag
+	verbose := flag.Bool("v", false, "Print lyrics.")
 	start := flag.String("s", "0", "Specify start of crawl.")
 	flag.Parse()
 
 	// start the investigation
-	lyrics_net.Investigate(*start)
+	lyrics_net.Investigate(*verbose, *start)
 }
