@@ -12,47 +12,48 @@ var name string
 func PrepareDB() *sql.DB {
 
 	// create db
-	db, err := sql.Open("sqlite3", name + ".db")
+	canvas, err := sql.Open("sqlite3", name + ".db")
 
 	// catch error
 	if err != nil {
 		log.Println("Failed to open db", name + ".db:", err)
 	}
 
-	return db
+	return canvas
 }
 
 func InitiateDB(db_name string) {
 
+	// set db name
 	name = db_name
 
 	// prepare db
-	db := PrepareDB()
-	defer db.Close()
+	canvas := PrepareDB()
+	defer canvas.Close()
 
 	// create tables
-	_, err := db.Exec(`create table if not exists artists (
+	_, err := canvas.Exec(`create table if not exists artists (
 								  
-				  name text not null, 	  
-				          			  
-				  primary key (name))`)
+				      name text not null, 	  
+				              			  
+				      primary key (name))`)
 
-	_, err = db.Exec(`create table if not exists albums ( 		
+	_, err = canvas.Exec(`create table if not exists albums ( 		
 									
-				 title       text not null, 			
-				 artist_name text not null,  		
-				       					
-				 primary key (title, artist_name), 				
-				 foreign key (artist_name) references artists (name))`)
+				     title       text not null, 			
+				     artist_name text not null,  		
+				           					
+				     primary key (title, artist_name), 				
+				     foreign key (artist_name) references artists (name))`)
 
-	_, err = db.Exec(`create table if not exists songs ( 	    	       
+	_, err = canvas.Exec(`create table if not exists songs ( 	    	       
 								       
-				 title       text not null, 	    	       
-				 album_title text not null, 	    	       
-				 lyrics      text, 			    	       
-				       				       
-				 primary key (album_title, title),
-				 foreign key (album_title) references albums (title))`)
+				     title       text not null, 	    	       
+				     album_title text not null, 	    	       
+				     lyrics      text, 			    	       
+				           				       
+				     primary key (album_title, title),
+				     foreign key (album_title) references albums (title))`)
 
 	// catch error
 	if err != nil {
@@ -63,9 +64,9 @@ func InitiateDB(db_name string) {
 func AddArtist(artist_name string) {
 
 	// prepare db
-	db := PrepareDB()
-	defer db.Close()
-	tx, err := db.Begin()
+	canvas := PrepareDB()
+	defer canvas.Close()
+	tx, err := canvas.Begin()
 
 	// insert entry
 	stmt, err := tx.Prepare("insert or replace into artists (name) values (?)")
@@ -82,9 +83,9 @@ func AddArtist(artist_name string) {
 func AddAlbum(artist_name, album_title string) {
 
 	// prepare db
-	db := PrepareDB()
-	defer db.Close()
-	tx, err := db.Begin()
+	canvas := PrepareDB()
+	defer canvas.Close()
+	tx, err := canvas.Begin()
 
 	// insert entry
 	stmt, err := tx.Prepare("insert or replace into albums (artist_name, title) values (?, ?)")
@@ -100,49 +101,54 @@ func AddAlbum(artist_name, album_title string) {
 
 func AddSong(album_title, song_title, lyrics string) {
 
+	// initialized failed flag
 	var failed bool
 
 	for {
 
 		// prepare db
-		db := PrepareDB()
-		defer db.Close()
-		tx, err := db.Begin()
+		canvas := PrepareDB()
+		defer canvas.Close()
+		tx, err := canvas.Begin()
 
 		// catch error
 		if err != nil {
 			failed = true
-			log.Println("\ndb.Begin failed.\nFailed to add song", song_title, "in album", album_title+":", err, "\n")
-			db.Close()
+			log.Println("\nError in .Begin\nFailed to add song", song_title, "in album", album_title+":", err, "\n")
 			time.Sleep(time.Second)
+			canvas.Close()
 			continue
 		}
 
 		// prepare statement
 		stmt, err := tx.Prepare("insert or replace into songs (album_title, title, lyrics) values (?, ?, ?)")
-		defer stmt.Close()
 
 		// catch error
 		if err != nil {
 			failed = true
-			log.Println("\ntx.Prepare failed.\nFailed to add song", song_title, "in album", album_title+":", err, "\n")
-			db.Close()
+			log.Println("\nERror in .Prepare\nFailed to add song", song_title, "in album", album_title+":", err, "\n")
 			time.Sleep(time.Second)
+			canvas.Close()
 			continue
 		}
+
+		// close statement
+		defer stmt.Close()
 
 		// execute statement
 		_, err = stmt.Exec(album_title, song_title, lyrics)
-		tx.Commit()
 
 		// catch error
 		if err != nil {
 			failed = true
-			log.Println("\nstmt.Exec failed.\nFailed to add song", song_title, "in album", album_title+":", err, "\n")
-			db.Close()
+			log.Println("\nError in .Exec\nFailed to add song", song_title, "in album", album_title+":", err, "\n")
 			time.Sleep(time.Second)
+			canvas.Close()
 			continue
 		}
+
+		// commit changes
+		tx.Commit()
 
 		// notify that a previous failure was cleaned up
 		if failed {

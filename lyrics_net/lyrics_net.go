@@ -9,7 +9,6 @@ import (
 	"log"
 	"net/http"
 	"regexp"
-	"os"
 	"sync"
 	"time"
 )
@@ -22,33 +21,21 @@ var url string = "http://www.lyrics.net"
 
 func communicate(url string) (bool, io.ReadCloser) {
 
-	// open file
-	f, f_err := os.OpenFile("statuses.txt", os.O_APPEND|os.O_WRONLY, 0600)
-	defer f.Close()
-
 	// never stop trying
 	for {
 
 		// get url
 		resp, err := http.Get(url)
 
-		// catch errors
-		if f_err != nil {
-			log.Println("Failed to open file:", f_err)
-			return false, resp.Body
-		}
-		if err != nil {
-			log.Println("Failed to crawl:", err)
-			return false, resp.Body
-		}
-
-		// write http request to file
-		_, err = f.WriteString(url + " " + resp.Status + "\n")
-
 		// catch error
 		if err != nil {
-			log.Println("Failed to write file:", err)
+			log.Println("\n", err, "\n")
+			time.Sleep(time.Second)
+			continue
 		}
+
+		// write status to output
+		fmt.Println(url, resp.Status)
 
 		// check status codes
 		if resp.StatusCode == 200 {
@@ -76,7 +63,7 @@ func inASCIIupper(start string) bool {
 	return false
 }
 
-func Investigate(verbose bool, start string) {
+func Investigate(start string) {
 
 	// initiate db
 	db.InitiateDB("lyrics_net")
@@ -139,7 +126,7 @@ func Investigate(verbose bool, start string) {
 							letter_url := url + a.Val + "/99999"
 
 							// get artists
-							getArtists(verbose, start, letter_url)
+							getArtists(start, letter_url)
 						}
 					}
 				}
@@ -148,7 +135,7 @@ func Investigate(verbose bool, start string) {
 	}
 }
 
-func getArtists(verbose bool, start, letter_url string) {
+func getArtists(start, letter_url string) {
 
 	// set caught up expression
 	expression, _ := regexp.Compile("^" + start + ".*$")
@@ -216,10 +203,8 @@ func getArtists(verbose bool, start, letter_url string) {
 								continue
 							}
 
-
-
 							// parse the artist
-							parseArtist(verbose, artist_url, artist_name)
+							parseArtist(artist_url, artist_name)
 						}
 					}
 				}
@@ -228,17 +213,13 @@ func getArtists(verbose bool, start, letter_url string) {
 	}
 }
 
-func parseArtist(verbose bool, artist_url, artist_name string) {
+func parseArtist(artist_url, artist_name string) {
 
 	// initialize artist flag
 	var artistAdded bool
 
 	// set body
 	skip, b := communicate(artist_url)
-	if verbose {
-		fmt.Println()
-		fmt.Println(artist_name, artist_url)
-	}
 	defer b.Close()
 
 	// check for skip
@@ -293,7 +274,7 @@ func parseArtist(verbose bool, artist_url, artist_name string) {
 						db.AddAlbum(artist_name, album_title)
 
 						// parse album
-						dorothy := parseAlbum(verbose, album_url, album_title)
+						dorothy := parseAlbum(album_url, album_title)
 
 						// handle dorothy
 						if dorothy {
@@ -334,7 +315,7 @@ func parseArtist(verbose bool, artist_url, artist_name string) {
 
 											// parse song
 											wg.Add(1)
-											go parseSong(verbose, song_url, song_title, album_title)
+											go parseSong(song_url, song_title, album_title)
 										}
 									}
 								}
@@ -347,15 +328,10 @@ func parseArtist(verbose bool, artist_url, artist_name string) {
 	}
 }
 
-func parseAlbum(verbose bool, album_url, album_title string) bool {
+func parseAlbum(album_url, album_title string) bool {
 
 	// set body
 	skip, b := communicate(album_url)
-	if verbose {
-		fmt.Println()
-		fmt.Println("\t", album_title, album_url)
-		fmt.Println()
-	}
 	defer b.Close()
 
 	// check for skip
@@ -414,7 +390,7 @@ func parseAlbum(verbose bool, album_url, album_title string) bool {
 
 						// parse song
 						wg.Add(1)
-						go parseSong(verbose, song_url, song_title, album_title)
+						go parseSong(song_url, song_title, album_title)
 					}
 				}
 			}
@@ -422,13 +398,10 @@ func parseAlbum(verbose bool, album_url, album_title string) bool {
 	}
 }
 
-func parseSong(verbose bool, song_url, song_title, album_title string) {
+func parseSong(song_url, song_title, album_title string) {
 
 	// set body
 	skip, b := communicate(song_url)
-	if verbose {
-		fmt.Println("\t\t\t", song_title, song_url)
-	}
 	defer b.Close()
 
 	// check for skip
