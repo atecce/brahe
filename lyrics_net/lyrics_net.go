@@ -35,7 +35,7 @@ func communicate(url string) (bool, io.ReadCloser) {
 		}
 
 		// write status to output
-		fmt.Println(url, resp.Status)
+		fmt.Println(time.Now(), url, resp.Status)
 
 		// check status codes
 		if resp.StatusCode == 200 {
