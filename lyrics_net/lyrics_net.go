@@ -19,6 +19,9 @@ var wg sync.WaitGroup
 // get url
 var url string = "http://www.lyrics.net"
 
+// set caught up variable
+var caught_up bool
+
 func communicate(url string) (bool, io.ReadCloser) {
 
 	// never stop trying
@@ -139,7 +142,6 @@ func getArtists(start, letter_url string) {
 
 	// set caught up expression
 	expression, _ := regexp.Compile("^" + start + ".*$")
-	var caught_up bool
 	if start == "0" {
 		caught_up = true
 	}
