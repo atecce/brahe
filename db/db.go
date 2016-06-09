@@ -114,7 +114,7 @@ func AddSong(album_title, song_title, lyrics string) {
 		// catch error
 		if err != nil {
 			failed = true
-			log.Println("\nError in .Begin\nFailed to add song", song_title, "in album", album_title+":", err, "\n")
+			log.Println("Error in .Begin: Failed to add song", song_title, "in album", album_title+":", err)
 			time.Sleep(time.Second)
 			canvas.Close()
 			continue
@@ -126,7 +126,7 @@ func AddSong(album_title, song_title, lyrics string) {
 		// catch error
 		if err != nil {
 			failed = true
-			log.Println("\nError in .Prepare\nFailed to add song", song_title, "in album", album_title+":", err, "\n")
+			log.Println("Error in .Prepare: Failed to add song", song_title, "in album", album_title+":", err)
 			time.Sleep(time.Second)
 			canvas.Close()
 			continue
@@ -141,7 +141,7 @@ func AddSong(album_title, song_title, lyrics string) {
 		// catch error
 		if err != nil {
 			failed = true
-			log.Println("\nError in .Exec\nFailed to add song", song_title, "in album", album_title+":", err, "\n")
+			log.Println("Error in .Exec: Failed to add song", song_title, "in album", album_title+":", err)
 			time.Sleep(time.Second)
 			canvas.Close()
 			continue
