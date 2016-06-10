@@ -174,7 +174,8 @@ func parseArtist(artist_url, artist_name string) {
 	for { switch z.Next() {
 
 		// end of html document
-		case html.ErrorToken: return
+		case html.ErrorToken: 
+			return
 
 		// catch start tags
 		case html.StartTagToken:
@@ -203,42 +204,43 @@ func parseArtist(artist_url, artist_name string) {
 				dorothy := parseAlbum(album_url, album_title)
 
 				// handle dorothy
-				if dorothy {
-
-					// set flag for finished album
-					var finished bool
-
-					// parse album from artist page
-					for { z.Next(); t = z.Token(); switch t.Data {
-
-						// check for finished album
-						case "div": 
-						
-							for _, a := range t.Attr { if a.Key == "class" && a.Val == "clearfix" { finished = true } }
-							if finished { wg.Wait(); break }
-
-						// check for song links
-						case "strong": 
-						
-							z.Next(); 
-							
-							for _, a := range z.Token().Attr { if a.Key == "href" {
-
-								// concatenate the url
-								song_url := url + a.Val
-
-								// next token is artist name
-								z.Next(); song_title := z.Token().Data
-
-								// parse song
-								wg.Add(1)
-								go parseSong(song_url, song_title, album_title)
-							}}
-					}}
-				}
+				if dorothy { no_place(album_title, z) }
 			}}}
 		}
 	}
+}
+
+func no_place(album_title string, z *html.Tokenizer) {
+
+	// parse album from artist page
+	for { z.Next(); t := z.Token(); switch t.Data {
+
+		// check for finished album
+		case "div": 
+		
+			for _, a := range t.Attr { if a.Key == "class" && a.Val == "clearfix" { 
+				wg.Wait()
+				return
+			}}
+
+		// check for song links
+		case "strong": 
+		
+			z.Next(); 
+			
+			for _, a := range z.Token().Attr { if a.Key == "href" {
+
+				// concatenate the url
+				song_url := url + a.Val
+
+				// next token is artist name
+				z.Next(); song_title := z.Token().Data
+
+				// parse song
+				wg.Add(1)
+				go parseSong(song_url, song_title, album_title)
+			}}
+	}}
 }
 
 func parseAlbum(album_url, album_title string) bool {
