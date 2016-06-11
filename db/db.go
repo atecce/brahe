@@ -15,9 +15,7 @@ func PrepareDB() *sql.DB {
 	canvas, err := sql.Open("sqlite3", name + ".db")
 
 	// catch error
-	if err != nil {
-		log.Println("Failed to open db", name + ".db:", err)
-	}
+	if err != nil { log.Println("Failed to open db", name + ".db:", err) }
 
 	return canvas
 }
@@ -56,9 +54,7 @@ func InitiateDB(db_name string) {
 				     foreign key (album_title) references albums (title))`)
 
 	// catch error
-	if err != nil {
-		log.Println("Failed to create tables:", err)
-	}
+	if err != nil { log.Println("Failed to create tables:", err) }
 }
 
 func AddArtist(artist_name string) {
@@ -75,9 +71,7 @@ func AddArtist(artist_name string) {
 	tx.Commit()
 
 	// catch error
-	if err != nil {
-		log.Println("Failed to add artist", artist_name + ":", err)
-	}
+	if err != nil { log.Println("Failed to add artist", artist_name + ":", err) }
 }
 
 func AddAlbum(artist_name, album_title string) {
@@ -94,9 +88,7 @@ func AddAlbum(artist_name, album_title string) {
 	tx.Commit()
 
 	// catch error
-	if err != nil {
-		log.Println("Failed to add album", album_title, "by", artist_name+":", err)
-	}
+	if err != nil { log.Println("Failed to add album", album_title, "by", artist_name+":", err) }
 }
 
 func AddSong(album_title, song_title, lyrics string) {
@@ -151,11 +143,9 @@ func AddSong(album_title, song_title, lyrics string) {
 		tx.Commit()
 
 		// notify that a previous failure was cleaned up
-		if failed {
-			log.Println("Successfully added song", song_title, "in album", album_title)
-		}
+		if failed { log.Println("Successfully added song", song_title, "in album", album_title) }
 
 		// exit
-		break
+		return
 	}
 }

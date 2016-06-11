@@ -68,8 +68,10 @@ func Investigate(start string) {
 
 	// use specified start letter
 	var expression string
-	if start == "0" || start == "" { expression = "^/artists/[0A-Z]$"
-	} else if inASCIIupper(start) { expression = "^/artists/[" + string(start[0]) + "-Z]$"
+	if start == "0" || start == "" { 
+		expression = "^/artists/[0A-Z]$"
+	} else if inASCIIupper(start) { 
+		expression = "^/artists/[" + string(start[0]) + "-Z]$"
 	} else {
 		log.Println("Invalid start character.")
 		return
@@ -226,7 +228,7 @@ func no_place(album_title string, z *html.Tokenizer) {
 		// check for song links
 		case "strong": 
 		
-			z.Next(); 
+			z.Next()
 			
 			for _, a := range z.Token().Attr { if a.Key == "href" {
 
