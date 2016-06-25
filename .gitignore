@@ -1,2 +1,7 @@
+bin/
+pkg/
+
+lyrics_net.db
+
 github.com/
 golang.org/
