@@ -7,30 +7,13 @@ import (
 	"time"
 )
 
-var name string
-
-func PrepareDB() *sql.DB {
-
-	// create db
-	canvas, err := sql.Open("sqlite3", name + ".db")
-
-	// catch error
-	if err != nil { log.Println("Failed to open db", name + ".db:", err) }
-
-	return canvas
-}
-
-func InitiateDB(db_name string) {
-
-	// set db name
-	name = db_name
+func InitiateDB(name string) *sql.DB {
 
 	// prepare db
-	canvas := PrepareDB()
-	defer canvas.Close()
+	canvas, err := sql.Open("sqlite3", name + ".db")
 
 	// create tables
-	_, err := canvas.Exec(`create table if not exists artists (
+	_, err = canvas.Exec(`create table if not exists artists (
 								  
 				      name text not null, 	  
 				              			  
@@ -55,13 +38,13 @@ func InitiateDB(db_name string) {
 
 	// catch error
 	if err != nil { log.Println("Failed to create tables:", err) }
+
+	return canvas
 }
 
-func AddArtist(artist_name string) {
+func AddArtist(artist_name string, canvas *sql.DB) {
 
 	// prepare db
-	canvas := PrepareDB()
-	defer canvas.Close()
 	tx, err := canvas.Begin()
 
 	// insert entry
@@ -74,11 +57,9 @@ func AddArtist(artist_name string) {
 	if err != nil { log.Println("Failed to add artist", artist_name + ":", err) }
 }
 
-func AddAlbum(artist_name, album_title string) {
+func AddAlbum(artist_name, album_title string, canvas *sql.DB) {
 
 	// prepare db
-	canvas := PrepareDB()
-	defer canvas.Close()
 	tx, err := canvas.Begin()
 
 	// insert entry
@@ -91,7 +72,7 @@ func AddAlbum(artist_name, album_title string) {
 	if err != nil { log.Println("Failed to add album", album_title, "by", artist_name+":", err) }
 }
 
-func AddSong(album_title, song_title, lyrics string) {
+func AddSong(album_title, song_title, lyrics string, canvas *sql.DB) {
 
 	// initialized failed flag
 	var failed bool
@@ -99,8 +80,6 @@ func AddSong(album_title, song_title, lyrics string) {
 	for {
 
 		// prepare db
-		canvas := PrepareDB()
-		defer canvas.Close()
 		tx, err := canvas.Begin()
 
 		// catch error

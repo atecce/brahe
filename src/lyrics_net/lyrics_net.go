@@ -1,6 +1,7 @@
 package lyrics_net
 
 import (
+	"database/sql"
 	"db"
 	"fmt"
 	_ "github.com/mattn/go-sqlite3"
@@ -64,7 +65,8 @@ func inASCIIupper(start string) bool {
 func Investigate(start string) {
 
 	// initiate db
-	db.InitiateDB("lyrics_net")
+	canvas := db.InitiateDB("lyrics_net")
+	defer canvas.Close()
 
 	// use specified start letter
 	var expression string
@@ -107,13 +109,13 @@ func Investigate(start string) {
 				letter_url := url + a.Val + "/99999"
 
 				// get artists
-				getArtists(start, letter_url)
+				getArtists(start, letter_url, canvas)
 			}}}}
 		}
 	}
 }
 
-func getArtists(start, letter_url string) {
+func getArtists(start, letter_url string, canvas *sql.DB) {
 
 	// set caught up expression
 	expression, _ := regexp.Compile("^" + start + ".*$")
@@ -153,13 +155,13 @@ func getArtists(start, letter_url string) {
 				if !caught_up { continue }
 
 				// parse the artist
-				parseArtist(artist_url, artist_name)
+				parseArtist(artist_url, artist_name, canvas)
 			}}}}
 		}
 	}
 }
 
-func parseArtist(artist_url, artist_name string) {
+func parseArtist(artist_url, artist_name string, canvas *sql.DB) {
 
 	// initialize artist flag
 	var artistAdded bool
@@ -189,7 +191,7 @@ func parseArtist(artist_url, artist_name string) {
 			if t.Data == "h3" { for _, a := range t.Attr { if a.Key == "class" && a.Val == "artist-album-label" {
 
 				// add artist
-				if !artistAdded { db.AddArtist(artist_name); artistAdded = true }
+				if !artistAdded { db.AddArtist(artist_name, canvas); artistAdded = true }
 
 				// album links are next token
 				var album_url string
@@ -200,19 +202,19 @@ func parseArtist(artist_url, artist_name string) {
 				z.Next(); album_title := z.Token().Data
 
 				// add album
-				db.AddAlbum(artist_name, album_title)
+				db.AddAlbum(artist_name, album_title, canvas)
 
 				// parse album
-				dorothy := parseAlbum(album_url, album_title)
+				dorothy := parseAlbum(album_url, album_title, canvas)
 
 				// handle dorothy
-				if dorothy { no_place(album_title, z) }
+				if dorothy { no_place(album_title, z, canvas) }
 			}}}
 		}
 	}
 }
 
-func no_place(album_title string, z *html.Tokenizer) {
+func no_place(album_title string, z *html.Tokenizer, canvas *sql.DB) {
 
 	// parse album from artist page
 	for { z.Next(); t := z.Token(); switch t.Data {
@@ -240,12 +242,12 @@ func no_place(album_title string, z *html.Tokenizer) {
 
 				// parse song
 				wg.Add(1)
-				go parseSong(song_url, song_title, album_title)
+				go parseSong(song_url, song_title, album_title, canvas)
 			}}
 	}}
 }
 
-func parseAlbum(album_url, album_title string) bool {
+func parseAlbum(album_url, album_title string, canvas *sql.DB) bool {
 
 	// initialize flag that checks for songs
 	var has_songs bool
@@ -290,14 +292,14 @@ func parseAlbum(album_url, album_title string) bool {
 
 					// parse song
 					wg.Add(1)
-					go parseSong(song_url, song_title, album_title)
+					go parseSong(song_url, song_title, album_title, canvas)
 				}}
 			}
 		}
 	}
 }
 
-func parseSong(song_url, song_title, album_title string) {
+func parseSong(song_url, song_title, album_title string, canvas *sql.DB) {
 
 	// set body
 	skip, b := communicate(song_url)
@@ -325,7 +327,7 @@ func parseSong(song_url, song_title, album_title string) {
 				z.Next(); lyrics := z.Token().Data
 
 				// add song to db
-				db.AddSong(album_title, song_title, lyrics)
+				db.AddSong(album_title, song_title, lyrics, canvas)
 			}
 		}
 	}
