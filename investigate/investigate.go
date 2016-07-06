@@ -1,8 +1,8 @@
 package main
 
 import (
+	"investigations/lyrics_net"
 	"flag"
-	"lyrics_net"
 )
 
 func main() {

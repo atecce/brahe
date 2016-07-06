@@ -2,7 +2,7 @@ package lyrics_net
 
 import (
 	"database/sql"
-	"db"
+	"investigations/db"
 	"fmt"
 	_ "github.com/mattn/go-sqlite3"
 	"golang.org/x/net/html"
