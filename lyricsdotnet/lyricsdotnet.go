@@ -12,6 +12,7 @@ import (
 	"time"
 
 	_ "github.com/mattn/go-sqlite3" // need this to declare sqlite3 pointer
+	"github.com/yhat/scrape"
 	"golang.org/x/net/html"
 )
 
@@ -100,44 +101,30 @@ func Investigate(start string) {
 
 	// set body
 	skip, b := communicate(url)
-	defer b.Close()
 
 	// check for skip
 	if skip {
 		return
 	}
 
-	// parse page
-	z := html.NewTokenizer(b)
-	for {
-		switch z.Next() {
+	root, err := html.Parse(b)
+	if err != nil {
+		panic(err)
+	}
 
-		// end of html document
-		case html.ErrorToken:
-			return
+	matcher := func(n *html.Node) bool {
+		return letters.MatchString(scrape.Attr(n, "href"))
+	}
 
-		// catch start tags
-		case html.StartTagToken:
+	letterURLs := scrape.FindAll(root, matcher)
 
-			// set token
-			t := z.Token()
+	for _, suburl := range letterURLs {
 
-			// look for matching letter suburl
-			if t.Data == "a" {
-				for _, a := range t.Attr {
-					if a.Key == href {
-						if letters.MatchString(a.Val) {
+		// concatenate the url TODO almost certainly a better way to join URL's
+		letterURL := url + scrape.Attr(suburl, "href") + "/99999"
 
-							// concatenate the url
-							letterURL := url + a.Val + "/99999"
-
-							// get artists
-							getArtists(start, letterURL, canvas)
-						}
-					}
-				}
-			}
-		}
+		// get artists
+		getArtists(start, letterURL, canvas)
 	}
 }
 
