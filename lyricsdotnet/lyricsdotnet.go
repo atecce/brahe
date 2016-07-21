@@ -118,6 +118,7 @@ func Investigate(start string) {
 
 	letterURLs := scrape.FindAll(root, matcher)
 
+	// TODO need better iterator name
 	for _, suburl := range letterURLs {
 
 		// concatenate the url TODO almost certainly a better way to join URL's
@@ -141,54 +142,45 @@ func getArtists(start, letterURL string, canvas *sql.DB) {
 
 	// set body
 	skip, b := communicate(letterURL)
-	defer b.Close()
 
 	// check for skip
 	if skip {
 		return
 	}
 
-	// parse page
-	z := html.NewTokenizer(b)
-	for {
-		switch z.Next() {
+	root, err := html.Parse(b)
+	if err != nil {
+		panic(err)
+	}
 
-		// end of document
-		case html.ErrorToken:
-			return
-
-		// catch start tags
-		case html.StartTagToken:
-
-			// find artist urls
-			if z.Token().Data == strong {
-				z.Next()
-				for _, a := range z.Token().Attr {
-					if a.Key == href {
-						if artists.MatchString(a.Val) {
-
-							// concatenate the url
-							artistURL := url + "/" + a.Val
-
-							// next token is artist name
-							z.Next()
-							artistName := z.Token().Data
-
-							// check if caught up
-							if expression.MatchString(artistName) {
-								caughtUp = true
-							}
-							if !caughtUp {
-								continue
-							}
-
-							// parse the artist
-							parseArtist(artistURL, artistName, canvas)
-						}
-					}
-				}
-			}
+	matcher := func(n *html.Node) bool {
+		if n.Parent != nil {
+			return n.Parent.Data == "strong" && artists.MatchString(scrape.Attr(n, "href"))
 		}
+		return false
+	}
+
+	artistURLs := scrape.FindAll(root, matcher)
+
+	// TODO need better iterator name
+	for _, suburl := range artistURLs {
+
+		// TODO again, must be much better way to join URL's
+		artistURL := url + "/" + scrape.Attr(suburl, "href")
+
+		// artist name
+		artistName := scrape.Text(suburl)
+
+		// check if caught up
+		if expression.MatchString(artistName) {
+			caughtUp = true
+		}
+		if !caughtUp {
+			continue
+		}
+
+		// parse the artist
+		parseArtist(artistURL, artistName, canvas)
 	}
 }
 
