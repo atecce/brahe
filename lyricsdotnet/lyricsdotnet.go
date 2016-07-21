@@ -95,9 +95,6 @@ func Investigate(start string) {
 		return
 	}
 
-	// set regular expression for letter suburls
-	letters, _ := regexp.Compile(expression)
-
 	// set body
 	skip, b := communicate(url)
 
@@ -112,6 +109,9 @@ func Investigate(start string) {
 	}
 
 	matcher := func(n *html.Node) bool {
+
+		letters, _ := regexp.Compile(expression)
+
 		return letters.MatchString(scrape.Attr(n, "href"))
 	}
 
@@ -136,9 +136,6 @@ func getArtists(start, letterURL string, canvas *sql.DB) {
 		caughtUp = true
 	}
 
-	// set regular expression for letter suburls
-	artists, _ := regexp.Compile("^artist/.*$")
-
 	// set body
 	skip, b := communicate(letterURL)
 
@@ -153,6 +150,9 @@ func getArtists(start, letterURL string, canvas *sql.DB) {
 	}
 
 	matcher := func(n *html.Node) bool {
+
+		artists, _ := regexp.Compile("^artist/.*$")
+
 		if n.Parent != nil {
 			return n.Parent.Data == "strong" && artists.MatchString(scrape.Attr(n, "href"))
 		}
