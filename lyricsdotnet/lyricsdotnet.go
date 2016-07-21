@@ -83,7 +83,6 @@ func Investigate(start string) {
 
 	// initiate db
 	canvas := db.InitiateDB("lyrics_net")
-	defer canvas.Close()
 
 	// use specified start letter
 	var expression string
