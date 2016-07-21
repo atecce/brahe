@@ -1,8 +1,8 @@
 package main
 
 import (
+	"investigations/lyricsdotnet"
 	"flag"
-	"investigations/lyrics_net"
 )
 
 func main() {
@@ -12,5 +12,5 @@ func main() {
 	flag.Parse()
 
 	// start the investigation
-	lyrics_net.Investigate(*start)
+	lyricsdotnet.Investigate(*start)
 }

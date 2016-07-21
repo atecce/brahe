@@ -1,4 +1,4 @@
-package lyrics_net
+package lyricsdotnet
 
 import (
 	"database/sql"
@@ -19,7 +19,11 @@ import (
 var wg sync.WaitGroup
 
 // get url
-var url = "http://www.lyrics.net"
+const url = "http://www.lyrics.net"
+
+// constant flags
+const href = "href"
+const strong = "strong"
 
 // set caught up variable
 var caughtUp bool
@@ -34,7 +38,7 @@ func communicate(url string) (bool, io.ReadCloser) {
 
 		// catch error
 		if err != nil {
-			log.Println("\n", err, "\n")
+			log.Println(err)
 			time.Sleep(time.Second)
 			continue
 		}
@@ -73,6 +77,7 @@ func inASCIIupper(start string) bool {
 	return false
 }
 
+// Investigate called to start web scrape
 func Investigate(start string) {
 
 	// initiate db
@@ -120,7 +125,7 @@ func Investigate(start string) {
 			// look for matching letter suburl
 			if t.Data == "a" {
 				for _, a := range t.Attr {
-					if a.Key == "href" {
+					if a.Key == href {
 						if letters.MatchString(a.Val) {
 
 							// concatenate the url
@@ -169,10 +174,10 @@ func getArtists(start, letterURL string, canvas *sql.DB) {
 		case html.StartTagToken:
 
 			// find artist urls
-			if z.Token().Data == "strong" {
+			if z.Token().Data == strong {
 				z.Next()
 				for _, a := range z.Token().Attr {
-					if a.Key == "href" {
+					if a.Key == href {
 						if artists.MatchString(a.Val) {
 
 							// concatenate the url
@@ -244,7 +249,7 @@ func parseArtist(artistURL, artistName string, canvas *sql.DB) {
 						var albumURL string
 						z.Next()
 						for _, albumAttribute := range z.Token().Attr {
-							if albumAttribute.Key == "href" {
+							if albumAttribute.Key == href {
 								albumURL = url + albumAttribute.Val
 							}
 						}
@@ -289,12 +294,12 @@ func noPlace(albumTitle string, z *html.Tokenizer, canvas *sql.DB) {
 			}
 
 		// check for song links
-		case "strong":
+		case strong:
 
 			z.Next()
 
 			for _, a := range z.Token().Attr {
-				if a.Key == "href" {
+				if a.Key == href {
 
 					// concatenate the url
 					songURL := url + a.Val
@@ -352,10 +357,10 @@ func parseAlbum(albumURL, albumTitle string, canvas *sql.DB) bool {
 				}
 
 			// find song links
-			case "strong":
+			case strong:
 				z.Next()
 				for _, a := range z.Token().Attr {
-					if a.Key == "href" {
+					if a.Key == href {
 
 						// mark that the page has songs
 						hasSongs = true
