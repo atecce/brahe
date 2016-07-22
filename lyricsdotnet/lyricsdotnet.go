@@ -196,7 +196,7 @@ func parseArtist(artistURL, artistName string, canvas *sql.DB) {
 		// TODO better urljoin
 		albumURL := url + scrape.Attr(n.FirstChild, "href")
 
-		fmt.Println(albumURL, albumTitle, albumYear)
+		fmt.Println(albumTitle, albumYear, albumURL)
 
 		// add artist
 		if !artistAdded {
@@ -205,7 +205,7 @@ func parseArtist(artistURL, artistName string, canvas *sql.DB) {
 		}
 
 		// add album
-		db.AddAlbum(artistName, albumTitle, canvas)
+		db.AddAlbum(artistName, albumTitle, albumYear, canvas)
 	}
 
 	// 					// parse album

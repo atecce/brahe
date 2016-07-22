@@ -24,6 +24,7 @@ func InitiateDB(name string) *sql.DB {
 
 				     title      text not null,
 				     artistName text not null,
+						 year 			integer not null,
 
 				     primary key (title, artistName),
 				     foreign key (artistName) references artists (name))`)
@@ -62,15 +63,15 @@ func AddArtist(artistName string, canvas *sql.DB) {
 	}
 }
 
-func AddAlbum(artistName, albumTitle string, canvas *sql.DB) {
+func AddAlbum(artistName, albumTitle string, albumYear int, canvas *sql.DB) {
 
 	// prepare db
 	tx, err := canvas.Begin()
 
 	// insert entry
-	stmt, err := tx.Prepare("insert or replace into albums (artistName, title) values (?, ?)")
+	stmt, err := tx.Prepare("insert or replace into albums (artistName, title, year) values (?, ?, ?)")
 	defer stmt.Close()
-	_, err = stmt.Exec(artistName, albumTitle)
+	_, err = stmt.Exec(artistName, albumTitle, albumYear)
 	tx.Commit()
 
 	// catch error
