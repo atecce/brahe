@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"regexp"
+	"strconv"
 	"sync"
 	"time"
 
@@ -108,16 +109,16 @@ func Investigate(start string) {
 		panic(err)
 	}
 
-	letterURLs := scrape.FindAll(root, func(n *html.Node) bool {
+	letterNodes := scrape.FindAll(root, func(n *html.Node) bool {
 		letters, _ := regexp.Compile(expression)
 		return letters.MatchString(scrape.Attr(n, "href"))
 	})
 
 	// TODO need better iterator name
-	for _, suburl := range letterURLs {
+	for _, n := range letterNodes {
 
 		// concatenate the url TODO almost certainly a better way to join URL's
-		letterURL := url + scrape.Attr(suburl, "href") + "/99999"
+		letterURL := url + scrape.Attr(n, "href") + "/99999"
 
 		// get artists
 		getArtists(start, letterURL, canvas)
@@ -145,7 +146,7 @@ func getArtists(start, letterURL string, canvas *sql.DB) {
 		panic(err)
 	}
 
-	artistURLs := scrape.FindAll(root, func(n *html.Node) bool {
+	artistNodes := scrape.FindAll(root, func(n *html.Node) bool {
 		artists, _ := regexp.Compile("^artist/.*$")
 		if n.Parent != nil {
 			return n.Parent.Data == "strong" && artists.MatchString(scrape.Attr(n, "href"))
@@ -153,14 +154,13 @@ func getArtists(start, letterURL string, canvas *sql.DB) {
 		return false
 	})
 
-	// TODO need better iterator name
-	for _, suburl := range artistURLs {
+	for _, n := range artistNodes {
 
 		// TODO again, must be much better way to join URL's
-		artistURL := url + "/" + scrape.Attr(suburl, "href")
+		artistURL := url + "/" + scrape.Attr(n, "href")
 
 		// artist name
-		artistName := scrape.Text(suburl)
+		artistName := scrape.Text(n)
 
 		// check if caught up
 		if expression.MatchString(artistName) {
@@ -178,7 +178,7 @@ func getArtists(start, letterURL string, canvas *sql.DB) {
 func parseArtist(artistURL, artistName string, canvas *sql.DB) {
 
 	// initialize artist flag
-	//	var artistAdded bool
+	var artistAdded bool
 
 	// set body
 	skip, b := communicate(artistURL)
@@ -194,51 +194,38 @@ func parseArtist(artistURL, artistName string, canvas *sql.DB) {
 		panic(err)
 	}
 
-	albumURLs := scrape.FindAll(root, func(n *html.Node) bool {
+	albumNodes := scrape.FindAll(root, func(n *html.Node) bool {
 		return scrape.Attr(n, "class") == "artist-album-label"
 	})
 
-	for _, test := range albumURLs {
+	for _, n := range albumNodes {
 
 		// TODO awk would be nice here
-		text := scrape.Text(test)
-		fmt.Println(text[:len(text)-7], text[len(text)-5:len(text)-1])
+		text := scrape.Text(n)
+		albumTitle := text[:len(text)-7]
+		albumYear, _ := strconv.Atoi(text[len(text)-5 : len(text)-1])
+
+		// TODO better urljoin
+		albumURL := url + scrape.Attr(n.FirstChild, "href")
+
+		fmt.Println(albumURL, albumTitle, albumYear)
+
+		// add artist
+		if !artistAdded {
+			db.AddArtist(artistName, canvas)
+			artistAdded = true
+		}
+
+		// add album
+		db.AddAlbum(artistName, albumTitle, canvas)
 	}
 
-	// 					// add artist
-	// 					if !artistadded {
-	// 						db.addartist(artistname, canvas)
-	// 						artistadded = true
-	// 					}
-	//
-	// 					// album links are next token
-	// 					var albumurl string
-	// 					z.next()
-	// 					for _, albumattribute := range z.token().attr {
-	// 						if albumattribute.key == href {
-	// 							albumurl = url + albumattribute.val
-	// 						}
-	// 					}
-	//
-	// 					// album titles are the next token
-	// 					z.next()
-	// 					albumtitle := z.token().data
-	//
-	// 					// add album
-	// 					db.addalbum(artistname, albumtitle, canvas)
-	//
 	// 					// parse album
 	// 					dorothy := parsealbum(albumurl, albumtitle, canvas)
 	//
 	// 					// handle dorothy
 	// 					if dorothy {
 	// 						noplace(albumtitle, z, canvas)
-	// 					}
-	// 				}
-	// 			}
-	// 		}
-	// 	}
-	//}
 }
 
 func noPlace(albumTitle string, z *html.Tokenizer, canvas *sql.DB) {
