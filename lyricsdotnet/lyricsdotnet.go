@@ -145,17 +145,13 @@ func getArtists(start, letterURL string, canvas *sql.DB) {
 		panic(err)
 	}
 
-	matcher := func(n *html.Node) bool {
-
+	artistURLs := scrape.FindAll(root, func(n *html.Node) bool {
 		artists, _ := regexp.Compile("^artist/.*$")
-
 		if n.Parent != nil {
 			return n.Parent.Data == "strong" && artists.MatchString(scrape.Attr(n, "href"))
 		}
 		return false
-	}
-
-	artistURLs := scrape.FindAll(root, matcher)
+	})
 
 	// TODO need better iterator name
 	for _, suburl := range artistURLs {
