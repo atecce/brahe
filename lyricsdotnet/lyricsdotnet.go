@@ -108,14 +108,10 @@ func Investigate(start string) {
 		panic(err)
 	}
 
-	matcher := func(n *html.Node) bool {
-
+	letterURLs := scrape.FindAll(root, func(n *html.Node) bool {
 		letters, _ := regexp.Compile(expression)
-
 		return letters.MatchString(scrape.Attr(n, "href"))
-	}
-
-	letterURLs := scrape.FindAll(root, matcher)
+	})
 
 	// TODO need better iterator name
 	for _, suburl := range letterURLs {
@@ -186,7 +182,7 @@ func getArtists(start, letterURL string, canvas *sql.DB) {
 func parseArtist(artistURL, artistName string, canvas *sql.DB) {
 
 	// initialize artist flag
-	var artistAdded bool
+	//	var artistAdded bool
 
 	// set body
 	skip, b := communicate(artistURL)
@@ -197,60 +193,56 @@ func parseArtist(artistURL, artistName string, canvas *sql.DB) {
 		return
 	}
 
-	// parse page
-	z := html.NewTokenizer(b)
-	for {
-		switch z.Next() {
-
-		// end of html document
-		case html.ErrorToken:
-			return
-
-		// catch start tags
-		case html.StartTagToken:
-
-			// set token
-			t := z.Token()
-
-			// look for artist album labels
-			if t.Data == "h3" {
-				for _, a := range t.Attr {
-					if a.Key == "class" && a.Val == "artist-album-label" {
-
-						// add artist
-						if !artistAdded {
-							db.AddArtist(artistName, canvas)
-							artistAdded = true
-						}
-
-						// album links are next token
-						var albumURL string
-						z.Next()
-						for _, albumAttribute := range z.Token().Attr {
-							if albumAttribute.Key == href {
-								albumURL = url + albumAttribute.Val
-							}
-						}
-
-						// album titles are the next token
-						z.Next()
-						albumTitle := z.Token().Data
-
-						// add album
-						db.AddAlbum(artistName, albumTitle, canvas)
-
-						// parse album
-						dorothy := parseAlbum(albumURL, albumTitle, canvas)
-
-						// handle dorothy
-						if dorothy {
-							noPlace(albumTitle, z, canvas)
-						}
-					}
-				}
-			}
-		}
+	root, err := html.Parse(b)
+	if err != nil {
+		panic(err)
 	}
+
+	albumURLs := scrape.FindAll(root, func(n *html.Node) bool {
+		return scrape.Attr(n, "class") == "artist-album-label"
+	})
+
+	for _, test := range albumURLs {
+
+		// TODO awk would be nice here
+		text := scrape.Text(test)
+		fmt.Println(text[:len(text)-7], text[len(text)-5:len(text)-1])
+	}
+
+	// 					// add artist
+	// 					if !artistadded {
+	// 						db.addartist(artistname, canvas)
+	// 						artistadded = true
+	// 					}
+	//
+	// 					// album links are next token
+	// 					var albumurl string
+	// 					z.next()
+	// 					for _, albumattribute := range z.token().attr {
+	// 						if albumattribute.key == href {
+	// 							albumurl = url + albumattribute.val
+	// 						}
+	// 					}
+	//
+	// 					// album titles are the next token
+	// 					z.next()
+	// 					albumtitle := z.token().data
+	//
+	// 					// add album
+	// 					db.addalbum(artistname, albumtitle, canvas)
+	//
+	// 					// parse album
+	// 					dorothy := parsealbum(albumurl, albumtitle, canvas)
+	//
+	// 					// handle dorothy
+	// 					if dorothy {
+	// 						noplace(albumtitle, z, canvas)
+	// 					}
+	// 				}
+	// 			}
+	// 		}
+	// 	}
+	//}
 }
 
 func noPlace(albumTitle string, z *html.Tokenizer, canvas *sql.DB) {
