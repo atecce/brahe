@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"fmt"
 	"investigations/db"
-	"io"
 	"log"
 	"net/http"
 	"regexp"
@@ -30,19 +29,24 @@ const strong = "strong"
 // set caught up variable
 var caughtUp bool
 
-func communicate(url string) (bool, io.ReadCloser) {
+func communicate(url string) (bool, *html.Node) {
 
 	// never stop trying
 	for {
 
 		// get url
 		resp, err := http.Get(url)
-
-		// catch error
 		if err != nil {
 			log.Println(err)
 			time.Sleep(time.Second)
 			continue
+		}
+		defer resp.Body.Close()
+
+		// get root node
+		root, err := html.Parse(resp.Body)
+		if err != nil {
+			panic(err)
 		}
 
 		// write status to output
@@ -53,11 +57,11 @@ func communicate(url string) (bool, io.ReadCloser) {
 
 		// cases which are returned
 		case 200:
-			return false, resp.Body
+			return false, root
 		case 403:
-			return true, resp.Body
+			return true, root
 		case 404:
-			return true, resp.Body
+			return true, root
 
 		// cases which are retried
 		case 503:
@@ -97,16 +101,11 @@ func Investigate(start string) {
 	}
 
 	// set body
-	skip, b := communicate(url)
+	skip, root := communicate(url)
 
 	// check for skip
 	if skip {
 		return
-	}
-
-	root, err := html.Parse(b)
-	if err != nil {
-		panic(err)
 	}
 
 	letterNodes := scrape.FindAll(root, func(n *html.Node) bool {
@@ -134,16 +133,11 @@ func getArtists(start, letterURL string, canvas *sql.DB) {
 	}
 
 	// set body
-	skip, b := communicate(letterURL)
+	skip, root := communicate(letterURL)
 
 	// check for skip
 	if skip {
 		return
-	}
-
-	root, err := html.Parse(b)
-	if err != nil {
-		panic(err)
 	}
 
 	artistNodes := scrape.FindAll(root, func(n *html.Node) bool {
@@ -181,17 +175,11 @@ func parseArtist(artistURL, artistName string, canvas *sql.DB) {
 	var artistAdded bool
 
 	// set body
-	skip, b := communicate(artistURL)
-	defer b.Close()
+	skip, root := communicate(artistURL)
 
 	// check for skip
 	if skip {
 		return
-	}
-
-	root, err := html.Parse(b)
-	if err != nil {
-		panic(err)
 	}
 
 	albumNodes := scrape.FindAll(root, func(n *html.Node) bool {
@@ -228,147 +216,145 @@ func parseArtist(artistURL, artistName string, canvas *sql.DB) {
 	// 						noplace(albumtitle, z, canvas)
 }
 
-func noPlace(albumTitle string, z *html.Tokenizer, canvas *sql.DB) {
-
-	// parse album from artist page
-	for {
-		z.Next()
-		t := z.Token()
-		switch t.Data {
-
-		// check for finished album
-		case "div":
-
-			for _, a := range t.Attr {
-				if a.Key == "class" && a.Val == "clearfix" {
-					wg.Wait()
-					return
-				}
-			}
-
-		// check for song links
-		case strong:
-
-			z.Next()
-
-			for _, a := range z.Token().Attr {
-				if a.Key == href {
-
-					// concatenate the url
-					songURL := url + a.Val
-
-					// next token is artist name
-					z.Next()
-					songTitle := z.Token().Data
-
-					// parse song
-					wg.Add(1)
-					go parseSong(songURL, songTitle, albumTitle, canvas)
-				}
-			}
-		}
-	}
-}
-
-func parseAlbum(albumURL, albumTitle string, canvas *sql.DB) bool {
-
-	// initialize flag that checks for songs
-	var hasSongs bool
-
-	// set body
-	skip, b := communicate(albumURL)
-	defer b.Close()
-
-	// check for skip
-	if skip {
-		return false
-	}
-
-	// parse page
-	z := html.NewTokenizer(b)
-	for {
-		switch z.Next() {
-
-		// end of html document
-		case html.ErrorToken:
-			wg.Wait()
-			return !hasSongs
-
-		// catch start tags
-		case html.StartTagToken:
-
-			// check token
-			t := z.Token()
-			switch t.Data {
-
-			// check for home page
-			case "body":
-				for _, a := range t.Attr {
-					if a.Key == "id" && a.Val == "s4-page-homepage" {
-						return true
-					}
-				}
-
-			// find song links
-			case strong:
-				z.Next()
-				for _, a := range z.Token().Attr {
-					if a.Key == href {
-
-						// mark that the page has songs
-						hasSongs = true
-
-						// concatenate the url
-						songURL := url + a.Val
-
-						// next token is artist name
-						z.Next()
-						songTitle := z.Token().Data
-
-						// parse song
-						wg.Add(1)
-						go parseSong(songURL, songTitle, albumTitle, canvas)
-					}
-				}
-			}
-		}
-	}
-}
-
-func parseSong(songURL, songTitle, albumTitle string, canvas *sql.DB) {
-
-	// set body
-	skip, b := communicate(songURL)
-	defer b.Close()
-
-	// check for skip
-	if skip {
-		return
-	}
-
-	// parse page
-	z := html.NewTokenizer(b)
-	for {
-		switch z.Next() {
-
-		// end of html document
-		case html.ErrorToken:
-			wg.Done()
-			return
-
-		// catch start tags
-		case html.StartTagToken:
-
-			// find pre tokens
-			if z.Token().Data == "pre" {
-
-				// next token is lyrics
-				z.Next()
-				lyrics := z.Token().Data
-
-				// add song to db
-				db.AddSong(albumTitle, songTitle, lyrics, canvas)
-			}
-		}
-	}
-}
+// func noPlace(albumTitle string, z *html.Tokenizer, canvas *sql.DB) {
+//
+// 	// parse album from artist page
+// 	for {
+// 		z.Next()
+// 		t := z.Token()
+// 		switch t.Data {
+//
+// 		// check for finished album
+// 		case "div":
+//
+// 			for _, a := range t.Attr {
+// 				if a.Key == "class" && a.Val == "clearfix" {
+// 					wg.Wait()
+// 					return
+// 				}
+// 			}
+//
+// 		// check for song links
+// 		case strong:
+//
+// 			z.Next()
+//
+// 			for _, a := range z.Token().Attr {
+// 				if a.Key == href {
+//
+// 					// concatenate the url
+// 					songURL := url + a.Val
+//
+// 					// next token is artist name
+// 					z.Next()
+// 					songTitle := z.Token().Data
+//
+// 					// parse song
+// 					wg.Add(1)
+// 					go parseSong(songURL, songTitle, albumTitle, canvas)
+// 				}
+// 			}
+// 		}
+// 	}
+// }
+//
+// func parseAlbum(albumURL, albumTitle string, canvas *sql.DB) bool {
+//
+// 	// initialize flag that checks for songs
+// 	var hasSongs bool
+//
+// 	// set body
+// 	skip, root := communicate(albumURL)
+//
+// 	// check for skip
+// 	if skip {
+// 		return false
+// 	}
+//
+// 	// parse page
+// 	z := html.NewTokenizer(b)
+// 	for {
+// 		switch z.Next() {
+//
+// 		// end of html document
+// 		case html.ErrorToken:
+// 			wg.Wait()
+// 			return !hasSongs
+//
+// 		// catch start tags
+// 		case html.StartTagToken:
+//
+// 			// check token
+// 			t := z.Token()
+// 			switch t.Data {
+//
+// 			// check for home page
+// 			case "body":
+// 				for _, a := range t.Attr {
+// 					if a.Key == "id" && a.Val == "s4-page-homepage" {
+// 						return true
+// 					}
+// 				}
+//
+// 			// find song links
+// 			case strong:
+// 				z.Next()
+// 				for _, a := range z.Token().Attr {
+// 					if a.Key == href {
+//
+// 						// mark that the page has songs
+// 						hasSongs = true
+//
+// 						// concatenate the url
+// 						songURL := url + a.Val
+//
+// 						// next token is artist name
+// 						z.Next()
+// 						songTitle := z.Token().Data
+//
+// 						// parse song
+// 						wg.Add(1)
+// 						go parseSong(songURL, songTitle, albumTitle, canvas)
+// 					}
+// 				}
+// 			}
+// 		}
+// 	}
+// }
+//
+// func parseSong(songURL, songTitle, albumTitle string, canvas *sql.DB) {
+//
+// 	// set body
+// 	skip, root := communicate(songURL)
+//
+// 	// check for skip
+// 	if skip {
+// 		return
+// 	}
+//
+// 	// parse page
+// 	z := html.NewTokenizer(b)
+// 	for {
+// 		switch z.Next() {
+//
+// 		// end of html document
+// 		case html.ErrorToken:
+// 			wg.Done()
+// 			return
+//
+// 		// catch start tags
+// 		case html.StartTagToken:
+//
+// 			// find pre tokens
+// 			if z.Token().Data == "pre" {
+//
+// 				// next token is lyrics
+// 				z.Next()
+// 				lyrics := z.Token().Data
+//
+// 				// add song to db
+// 				db.AddSong(albumTitle, songTitle, lyrics, canvas)
+// 			}
+// 		}
+// 	}
+// }
