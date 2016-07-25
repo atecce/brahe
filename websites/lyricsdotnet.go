@@ -1,15 +1,14 @@
-package lyricsdotnet
+package websites
 
 import (
 	"database/sql"
 	"fmt"
+	"investigations/connection"
 	"investigations/db"
 	"log"
-	"net/http"
 	"regexp"
 	"strconv"
 	"sync"
-	"time"
 
 	_ "github.com/mattn/go-sqlite3" // need this to declare sqlite3 pointer
 	"github.com/yhat/scrape"
@@ -28,51 +27,6 @@ const strong = "strong"
 
 // set caught up variable
 var caughtUp bool
-
-func communicate(url string) (bool, *html.Node) {
-
-	// never stop trying
-	for {
-
-		// get url
-		resp, err := http.Get(url)
-		if err != nil {
-			log.Println(err)
-			time.Sleep(time.Second)
-			continue
-		}
-		defer resp.Body.Close()
-
-		// get root node
-		root, err := html.Parse(resp.Body)
-		if err != nil {
-			panic(err)
-		}
-
-		// write status to output
-		fmt.Println(time.Now(), url, resp.Status)
-
-		// check status codes
-		switch resp.StatusCode {
-
-		// cases which are returned
-		case 200:
-			return false, root
-		case 403:
-			return true, root
-		case 404:
-			return true, root
-
-		// cases which are retried
-		case 503:
-			time.Sleep(30 * time.Minute)
-		case 504:
-			time.Sleep(time.Minute)
-		default:
-			time.Sleep(time.Minute)
-		}
-	}
-}
 
 func inASCIIupper(start string) bool {
 	for _, char := range "ABCDEFGHIJKLMNOPQRSTUVWXYZ" {
@@ -101,7 +55,7 @@ func Investigate(start string) {
 	}
 
 	// set body
-	skip, root := communicate(url)
+	skip, root := communication.Communicate(url)
 
 	// check for skip
 	if skip {
@@ -133,7 +87,7 @@ func getArtists(start, letterURL string, canvas *sql.DB) {
 	}
 
 	// set body
-	skip, root := communicate(letterURL)
+	skip, root := communication.Communicate(letterURL)
 
 	// check for skip
 	if skip {
@@ -175,7 +129,7 @@ func parseArtist(artistURL, artistName string, canvas *sql.DB) {
 	var artistAdded bool
 
 	// set body
-	skip, root := communicate(artistURL)
+	skip, root := communication.Communicate(artistURL)
 
 	// check for skip
 	if skip {
@@ -188,13 +142,15 @@ func parseArtist(artistURL, artistName string, canvas *sql.DB) {
 
 	for _, n := range albumNodes {
 
-		// TODO awk would be nice here
-		text := scrape.Text(n)
-		albumTitle := text[:len(text)-7]
-		albumYear, _ := strconv.Atoi(text[len(text)-5 : len(text)-1])
+		// album link is first child
+		albumTitle := scrape.Text(n.FirstChild)
+		albumURL := url + scrape.Attr(n.FirstChild, "href") // TODO better urljoin
 
-		// TODO better urljoin
-		albumURL := url + scrape.Attr(n.FirstChild, "href")
+		// album year is last child
+		albumYearText := scrape.Text(n.LastChild)
+		albumYear, _ := strconv.Atoi(albumYearText[1 : len(albumYearText)-1])
+
+		fmt.Println(albumTitle, albumYear, albumURL)
 
 		// add artist
 		if !artistAdded {
@@ -206,47 +162,81 @@ func parseArtist(artistURL, artistName string, canvas *sql.DB) {
 		db.AddAlbum(artistName, albumTitle, albumYear, canvas)
 
 		// parse album
-		parseAlbum(albumURL, albumTitle, canvas)
+		dorothy := parseAlbum(albumURL, albumTitle, canvas)
 
-		// // handle dorothy
-		// if dorothy {
-		// 	noPlace(albumTitle, root, canvas)
-		// }
+		// handle dorothy
+		if dorothy {
+			noPlace(albumTitle, n, canvas)
+		}
 	}
 }
 
-// func noPlace(albumTitle string, root *html.Node, canvas *sql.DB) {
-//
-// 	// parse album from artist page
-// 	for {
-// 		z.Next()
-// 		t := z.Token()
-// 		switch t.Data {
-//
-// 		// check for finished album
-// 		case "div":
-//
+func noPlace(albumTitle string, titleNode *html.Node, canvas *sql.DB) {
+
+	// get album root node from title node
+	albumRoot, _ := scrape.FindParent(titleNode, func(n *html.Node) bool {
+		return scrape.Attr(n, "class") == "clearfix"
+	})
+
+	// get table nodes
+	tableNodes := scrape.FindAll(albumRoot, func(n *html.Node) bool {
+		return n.Data == "tr"
+	})
+
+	// fields are a slice of strings
+	var fields []string
+
+	for i, n := range tableNodes {
+
+		// first node contains the field titles
+		if i == 0 {
+
+			// extract all the field nodes
+			fieldNodes := scrape.FindAll(n, func(n *html.Node) bool {
+				return n.Data == "th"
+			})
+
+			for _, fieldNode := range fieldNodes {
+
+				// extract the field
+				field := scrape.Text(fieldNode)
+
+				// add non-empty fields
+				if field != "" {
+					fields = append(fields, field)
+				}
+			}
+		} else {
+
+			// extract all the song nodes
+			songNodes := scrape.FindAll(n, func(n *html.Node) bool {
+				return scrape.Attr(n, "class") == "tal qx"
+			})
+
+			songData := make(map[string]string)
+
+			for i, songNode := range songNodes {
+
+				// set song url and title
+				if fields[i] == "Song" && songNode.FirstChild.Data == "strong" {
+					songTitle := scrape.Text(songNode)
+					songURL := url + scrape.Attr(songNode.FirstChild.FirstChild, "href")
+					fmt.Println(songTitle, songURL)
+				}
+
+				// set song data
+				songData[fields[i]] = scrape.Text(songNode)
+			}
+		}
+	}
+}
+
 // 			for _, a := range t.Attr {
 // 				if a.Key == "class" && a.Val == "clearfix" {
 // 					wg.Wait()
 // 					return
 // 				}
 // 			}
-//
-// 		// check for song links
-// 		case strong:
-//
-// 			z.Next()
-//
-// 			for _, a := range z.Token().Attr {
-// 				if a.Key == href {
-//
-// 					// concatenate the url
-// 					songURL := url + a.Val
-//
-// 					// next token is artist name
-// 					z.Next()
-// 					songTitle := z.Token().Data
 //
 // 					// parse song
 // 					wg.Add(1)
@@ -256,14 +246,14 @@ func parseArtist(artistURL, artistName string, canvas *sql.DB) {
 // 		}
 // 	}
 // }
-//
+
 func parseAlbum(albumURL, albumTitle string, canvas *sql.DB) bool {
 
 	// initialize flag that checks for songs
 	var hasSongs bool
 
 	// set body
-	skip, root := communicate(albumURL)
+	skip, root := communication.Communicate(albumURL)
 
 	// check for homepage
 	_, skip = scrape.Find(root, func(n *html.Node) bool {
@@ -275,6 +265,7 @@ func parseAlbum(albumURL, albumTitle string, canvas *sql.DB) bool {
 		return true
 	}
 
+	// extract song links with bold
 	songNodes := scrape.FindAll(root, func(n *html.Node) bool {
 		if n.Parent != nil && scrape.Attr(n, "href") != "" {
 			return n.Parent.Data == "strong"
@@ -282,11 +273,9 @@ func parseAlbum(albumURL, albumTitle string, canvas *sql.DB) bool {
 		return false
 	})
 
-	if len(songNodes) > 0 {
-		hasSongs = true
-	}
-
 	for _, n := range songNodes {
+
+		hasSongs = true
 
 		// set song title
 		songTitle := scrape.Text(n)
@@ -297,7 +286,7 @@ func parseAlbum(albumURL, albumTitle string, canvas *sql.DB) bool {
 		fmt.Println(songTitle, songURL)
 	}
 
-	return hasSongs
+	return !hasSongs
 
 	// // parse page
 	// z := html.NewTokenizer(b)
@@ -354,7 +343,7 @@ func parseAlbum(albumURL, albumTitle string, canvas *sql.DB) bool {
 // func parseSong(songURL, songTitle, albumTitle string, canvas *sql.DB) {
 //
 // 	// set body
-// 	skip, root := communicate(songURL)
+// 	skip, root := communication.Communicate(songURL)
 //
 // 	// check for skip
 // 	if skip {
