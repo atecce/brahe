@@ -75,7 +75,7 @@ func decode(resp *http.Response, canvas *sql.DB) {
 func main() {
 
 	// set the canvas
-	canvas := db.InitiateDB()
+	canvas := db.Initiate()
 	defer canvas.Close()
 
 	// start counter at 0

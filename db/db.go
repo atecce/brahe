@@ -9,7 +9,7 @@ import (
 	"github.com/go-sql-driver/mysql"
 )
 
-func InitiateDB() *sql.DB {
+func Initiate() *sql.DB {
 
 	// prepare db
 	if canvas, err := sql.Open("mysql", "root:@tcp(127.0.0.1:3306)/"); err != nil {
