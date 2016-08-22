@@ -3,135 +3,145 @@ package db
 import (
 	"database/sql"
 	"log"
-	"time"
+	"reflect"
+	"strings"
 
-	_ "github.com/mattn/go-sqlite3" // need this to declare sqlite3 pointer
+	"github.com/go-sql-driver/mysql"
 )
 
-func InitiateDB(name string) *sql.DB {
+func InitiateDB() *sql.DB {
 
 	// prepare db
-	canvas, err := sql.Open("sqlite3", name+".db")
+	if canvas, err := sql.Open("mysql", "root:@tcp(127.0.0.1:3306)/"); err != nil {
+		panic(err)
+	} else {
 
-	// create tables
-	_, err = canvas.Exec(`create table if not exists artists (
+		// create database
+		if result, err := canvas.Exec(`CREATE DATABASE IF NOT EXISTS canvas`); err != nil {
+			panic(err)
+		} else {
 
-				      name text not null,
+			logResult(result)
 
-				      primary key (name))`)
+			useCanvas(canvas)
 
-	_, err = canvas.Exec(`create table if not exists albums (
+			// create tables
+			addTable("track", canvas)
+			addTable("user", canvas)
+			addTable("label", canvas)
 
-				     title      text not null,
-				     artistName text not null,
-						 year 			integer not null,
-
-				     primary key (title, artistName),
-				     foreign key (artistName) references artists (name))`)
-
-	_, err = canvas.Exec(`create table if not exists songs (
-
-				     title      text not null,
-				     albumTitle text not null,
-				     lyrics     text,
-
-				     primary key (albumTitle, title),
-				     foreign key (albumTitle) references albums (title))`)
-
-	// catch error
-	if err != nil {
-		log.Println("Failed to create tables:", err)
-	}
-
-	return canvas
-}
-
-func AddArtist(artistName string, canvas *sql.DB) {
-
-	// prepare db
-	tx, err := canvas.Begin()
-
-	// insert entry
-	stmt, err := tx.Prepare("insert or replace into artists (name) values (?)")
-	defer stmt.Close()
-	_, err = stmt.Exec(artistName)
-	tx.Commit()
-
-	// catch error
-	if err != nil {
-		log.Println("Failed to add artist", artistName+":", err)
-	}
-}
-
-func AddAlbum(artistName, albumTitle string, albumYear int, canvas *sql.DB) {
-
-	// prepare db
-	tx, err := canvas.Begin()
-
-	// insert entry
-	stmt, err := tx.Prepare("insert or replace into albums (artistName, title, year) values (?, ?, ?)")
-	defer stmt.Close()
-	_, err = stmt.Exec(artistName, albumTitle, albumYear)
-	tx.Commit()
-
-	// catch error
-	if err != nil {
-		log.Println("Failed to add album", albumTitle, "by", artistName+":", err)
-	}
-}
-
-func AddSong(albumTitle, songTitle, lyrics string, canvas *sql.DB) {
-
-	// initialized failed flag
-	var failed bool
-
-	for {
-
-		// prepare db
-		tx, err := canvas.Begin()
-
-		// catch error
-		if err != nil {
-			failed = true
-			log.Println("Error in .Begin: Failed to add song", songTitle, "in album", albumTitle+":", err)
-			time.Sleep(time.Second)
-			continue
+			// return the canvas
+			return canvas
 		}
+	}
+}
 
-		// prepare statement
-		stmt, err := tx.Prepare("insert or replace into songs (albumTitle, title, lyrics) values (?, ?, ?)")
+func useCanvas(canvas *sql.DB) {
+	if result, err := canvas.Exec(`USE canvas`); err != nil {
+		panic(err)
+	} else {
+		logResult(result)
+	}
+}
 
-		// catch error
-		if err != nil {
-			failed = true
-			log.Println("Error in .Prepare: Failed to add song", songTitle, "in album", albumTitle+":", err)
-			time.Sleep(time.Second)
-			continue
+func AddRow(table string, row map[string]interface{}, canvas *sql.DB) {
+
+	// add columns and values to query
+	var columns []string
+	var values []interface{}
+	for column, value := range row {
+
+		// make sure field isn't empty
+		if row[column] != nil && row[column] != "" {
+
+			// check column name
+			if column == "user" || column == "label" {
+				AddRow(column, value.(map[string]interface{}), canvas)
+				continue
+			} else {
+
+				// special case for reserved MySQL word
+				var entry string
+				if column == "release" {
+					entry = "release_number"
+				} else {
+					entry = column
+				}
+
+				columns = append(columns, entry)
+				values = append(values, value)
+			}
 		}
+	}
 
-		// close statement
+	query := constructQuery(table, columns)
+
+	// log.Println(query)
+
+	// prepare statment
+	if stmt, err := canvas.Prepare(query); err != nil {
+
+		// check for mysql error
+		if prepareErr, ok := err.(*mysql.MySQLError); ok {
+
+			// handle unknown column
+			if prepareErr.Number == 1054 {
+
+				// column name is second field delimited with single quotes
+				unknownColumn := strings.Split(prepareErr.Message, "'")[1]
+
+				// handle special case for MySQL keyword
+				var columnType reflect.Type
+				if unknownColumn == "release_number" {
+					columnType = reflect.TypeOf(row["release"])
+				} else {
+					columnType = reflect.TypeOf(row[unknownColumn])
+				}
+
+				addColumn(unknownColumn, table, columnType, canvas)
+
+				// try to add the track again
+				AddRow(table, row, canvas)
+
+			} else if prepareErr.Number == 1046 {
+				useCanvas(canvas)
+			} else {
+				panic(err)
+			}
+		}
+	} else {
 		defer stmt.Close()
 
-		// execute statement
-		_, err = stmt.Exec(albumTitle, songTitle, lyrics)
+		if result, err := stmt.Exec(values...); err != nil {
 
-		// catch error
-		if err != nil {
-			failed = true
-			log.Println("Error in .Exec: Failed to add song", songTitle, "in album", albumTitle+":", err)
-			time.Sleep(time.Second)
-			continue
+			if execErr, ok := err.(*mysql.MySQLError); ok {
+				if execErr.Number == 1366 {
+					log.Println(values)
+					problemColumn := strings.Split(execErr.Message, "'")[3]
+					problemValue := strings.Split(execErr.Message, "'")[1]
+					log.Println(problemColumn, problemValue, reflect.TypeOf(problemValue))
+					row[problemColumn] = problemValue
+				} else {
+					panic(err)
+				}
+			} else {
+				panic(err)
+			}
+		} else {
+
+			logResult(result)
 		}
+	}
+}
 
-		// commit changes
-		tx.Commit()
-
-		// notify that a previous failure was cleaned up
-		if failed {
-			log.Println("Successfully added song", songTitle, "in album", albumTitle)
+func logResult(result sql.Result) {
+	if lastID, err := result.LastInsertId(); err != nil {
+		panic(err)
+	} else {
+		if rowsAffected, err := result.RowsAffected(); err != nil {
+			panic(err)
+		} else {
+			log.Printf("Last ID: %d; Rows affected: %d", lastID, rowsAffected)
 		}
-
-		// exit
-		return
 	}
 }
