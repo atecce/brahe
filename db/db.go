@@ -145,3 +145,11 @@ func logResult(result sql.Result) {
 		}
 	}
 }
+
+func GetLatest(trackID *int, canvas *sql.DB) {
+
+	if err := canvas.QueryRow(`SELECT MAX(id) FROM track`).
+		Scan(trackID); err != nil {
+		panic(err)
+	}
+}

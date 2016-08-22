@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"os"
 	"strconv"
+	"time"
 )
 
 //const trackID = 5151298
@@ -23,21 +24,27 @@ var api = &url.URL{
 
 func communicate(api *url.URL, canvas *sql.DB) {
 
-	if resp, err := http.Get(api.String()); err != nil {
-		panic(err)
-	} else {
+	for {
 
-		// close body on function close
-		defer resp.Body.Close()
+		if resp, err := http.Get(api.String()); err != nil {
+			panic(err)
+		} else {
 
-		// make sure request was found TODO handle bad gateway
-		if resp.StatusCode == 404 || resp.StatusCode == 502 {
-			return
+			// close body on function close
+			defer resp.Body.Close()
+
+			log.Printf("%s %s", api.Path, resp.Status)
+
+			switch resp.StatusCode {
+			case 404:
+				return
+			case 502:
+				time.Sleep(time.Minute)
+			default:
+				decode(resp, canvas)
+				return
+			}
 		}
-		log.Printf("%s %s", api.Path, resp.Status)
-
-		// decode json
-		decode(resp, canvas)
 	}
 }
 
@@ -73,6 +80,7 @@ func main() {
 
 	// start counter at 0
 	var trackID int
+	db.GetLatest(&trackID, canvas)
 	for {
 
 		// increment ID
