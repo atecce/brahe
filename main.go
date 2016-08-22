@@ -26,8 +26,8 @@ func decode(resp *http.Response, canvas *sql.DB) {
 	// close body on function close
 	defer resp.Body.Close()
 
-	// make sure request was found
-	if resp.StatusCode == 404 {
+	// make sure request was found TODO handle bad gateway
+	if resp.StatusCode == 404 || resp.StatusCode == 502 {
 		return
 	}
 	log.Printf("%s %s", api.Path, resp.Status)
