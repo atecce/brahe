@@ -1,9 +1,9 @@
 package main
 
 import (
+	"bodhi/db"
 	"database/sql"
 	"encoding/json"
-	"investigations/db"
 	"io"
 	"log"
 	"net/http"
