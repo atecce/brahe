@@ -21,16 +21,27 @@ var api = &url.URL{
 	RawQuery: "client_id=" + os.Getenv("CLIENT_ID"),
 }
 
-func decode(resp *http.Response, canvas *sql.DB) {
+func communicate(api *url.URL, canvas *sql.DB) {
 
-	// close body on function close
-	defer resp.Body.Close()
+	if resp, err := http.Get(api.String()); err != nil {
+		panic(err)
+	} else {
 
-	// make sure request was found TODO handle bad gateway
-	if resp.StatusCode == 404 || resp.StatusCode == 502 {
-		return
+		// close body on function close
+		defer resp.Body.Close()
+
+		// make sure request was found TODO handle bad gateway
+		if resp.StatusCode == 404 || resp.StatusCode == 502 {
+			return
+		}
+		log.Printf("%s %s", api.Path, resp.Status)
+
+		// decode json
+		decode(resp, canvas)
 	}
-	log.Printf("%s %s", api.Path, resp.Status)
+}
+
+func decode(resp *http.Response, canvas *sql.DB) {
 
 	// set decoder
 	dec := json.NewDecoder(resp.Body)
@@ -69,12 +80,7 @@ func main() {
 
 		// attempt to get info on trackID
 		api.Path = "tracks/" + strconv.Itoa(trackID)
-		if resp, err := http.Get(api.String()); err != nil {
-			panic(err)
-		} else {
 
-			// decode json
-			decode(resp, canvas)
-		}
+		communicate(api, canvas)
 	}
 }
