@@ -34,14 +34,16 @@ func constructQuery(table string, columns []string) string {
 
 func addColumn(column, table string, columnType reflect.Type, canvas *sql.DB) {
 
+	log.Printf("%s %s", column, columnType)
+
+	// map for conversion between go and mysql data types
 	goToMySQL := map[string]string{
 		"bool":    "BOOL",
 		"float64": "FLOAT",
 		"string":  "TEXT",
 	}
 
-	log.Printf("%s %s", column, columnType)
-
+	// add column name and type
 	if result, err := canvas.Exec(`ALTER TABLE ` + table + ` ADD ` +
 		column + ` ` + goToMySQL[columnType.String()]); err != nil {
 		panic(err)
@@ -51,13 +53,9 @@ func addColumn(column, table string, columnType reflect.Type, canvas *sql.DB) {
 }
 
 func addTable(name string, canvas *sql.DB) {
-
 	if result, err := canvas.Exec(`CREATE TABLE IF NOT EXISTS ` + name + ` (
-
 		id INTEGER NOT NULL,
-
 		PRIMARY KEY (id))`); err != nil {
-
 		panic(err)
 	} else {
 		logResult(result)

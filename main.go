@@ -24,15 +24,13 @@ var api = &url.URL{
 
 func communicate(api *url.URL, canvas *sql.DB) {
 
+	// never stop trying
 	for {
 
 		if resp, err := http.Get(api.String()); err != nil {
 			panic(err)
 		} else {
-
-			// close body on function close
 			defer resp.Body.Close()
-
 			log.Printf("%s %s", api.Path, resp.Status)
 
 			switch resp.StatusCode {
@@ -89,6 +87,7 @@ func main() {
 		// attempt to get info on trackID
 		api.Path = "tracks/" + strconv.Itoa(trackID)
 
+		// try and communicate
 		communicate(api, canvas)
 	}
 }

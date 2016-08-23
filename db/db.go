@@ -11,36 +11,29 @@ import (
 
 func Initiate() *sql.DB {
 
-	// prepare db
+	// create database
 	if canvas, err := sql.Open("mysql", "root:@tcp(127.0.0.1:3306)/"); err != nil {
 		panic(err)
 	} else {
-
-		// create database
 		if result, err := canvas.Exec(`CREATE DATABASE IF NOT EXISTS canvas`); err != nil {
 			panic(err)
 		} else {
-
 			logResult(result)
 
-			useCanvas(canvas)
+			// use the database
+			if result, err := canvas.Exec(`USE canvas`); err != nil {
+				panic(err)
+			} else {
+				logResult(result)
 
-			// create tables
-			addTable("track", canvas)
-			addTable("user", canvas)
-			addTable("label", canvas)
+				// create tables
+				addTable("track", canvas)
+				addTable("user", canvas)
+				addTable("label", canvas)
 
-			// return the canvas
-			return canvas
+				return canvas
+			}
 		}
-	}
-}
-
-func useCanvas(canvas *sql.DB) {
-	if result, err := canvas.Exec(`USE canvas`); err != nil {
-		panic(err)
-	} else {
-		logResult(result)
 	}
 }
 
@@ -54,7 +47,7 @@ func AddRow(table string, row map[string]interface{}, canvas *sql.DB) {
 		// make sure field isn't empty
 		if row[column] != nil && row[column] != "" {
 
-			// check column name
+			// recursion WTF
 			if column == "user" || column == "label" {
 				AddRow(column, value.(map[string]interface{}), canvas)
 				continue
@@ -68,20 +61,20 @@ func AddRow(table string, row map[string]interface{}, canvas *sql.DB) {
 					entry = column
 				}
 
+				// append columns and values to list
 				columns = append(columns, entry)
 				values = append(values, value)
 			}
 		}
 	}
 
+	// construct query out of lists
 	query := constructQuery(table, columns)
 
 	// log.Println(query)
 
 	// prepare statment
 	if stmt, err := canvas.Prepare(query); err != nil {
-
-		// check for mysql error
 		if prepareErr, ok := err.(*mysql.MySQLError); ok {
 
 			// handle unknown column
@@ -98,13 +91,10 @@ func AddRow(table string, row map[string]interface{}, canvas *sql.DB) {
 					columnType = reflect.TypeOf(row[unknownColumn])
 				}
 
+				// add column and try to add the row again
 				addColumn(unknownColumn, table, columnType, canvas)
-
-				// try to add the track again
 				AddRow(table, row, canvas)
 
-			} else if prepareErr.Number == 1046 {
-				useCanvas(canvas)
 			} else {
 				panic(err)
 			}
@@ -112,14 +102,20 @@ func AddRow(table string, row map[string]interface{}, canvas *sql.DB) {
 	} else {
 		defer stmt.Close()
 
+		// insert row
 		if result, err := stmt.Exec(values...); err != nil {
-
 			if execErr, ok := err.(*mysql.MySQLError); ok {
+
+				// handle bananas characters
 				if execErr.Number == 1366 {
 					log.Println(values)
+
+					// error message convenienty delimted by '
 					problemColumn := strings.Split(execErr.Message, "'")[3]
 					problemValue := strings.Split(execErr.Message, "'")[1]
 					log.Println(problemColumn, problemValue, reflect.TypeOf(problemValue))
+
+					// reset as string
 					row[problemColumn] = problemValue
 				} else {
 					panic(err)
@@ -147,7 +143,6 @@ func logResult(result sql.Result) {
 }
 
 func GetLatest(trackID *int, canvas *sql.DB) {
-
 	if err := canvas.QueryRow(`SELECT MAX(id) FROM track`).
 		Scan(trackID); err != nil {
 		panic(err)
