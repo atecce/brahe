@@ -55,10 +55,10 @@ func decode(resp *http.Response, canvas *sql.DB) {
 	for {
 
 		// initalize track info
-		var track map[string]interface{}
+		var user map[string]interface{}
 
 		// break on EOF
-		if err := dec.Decode(&track); err == io.EOF {
+		if err := dec.Decode(&user); err == io.EOF {
 			log.Println("JSON", err)
 			break
 		} else if err != nil {
@@ -66,7 +66,7 @@ func decode(resp *http.Response, canvas *sql.DB) {
 		}
 
 		// add track to canvas
-		db.AddRow("track", track, canvas)
+		db.AddRow("user", user, canvas)
 	}
 }
 
@@ -76,16 +76,17 @@ func main() {
 	canvas := db.Initiate()
 	defer canvas.Close()
 
-	// start counter at 0
-	var trackID int
-	db.GetLatest(&trackID, canvas)
+	// start counter at last ID
+	var userID int
+	db.AddTable("user", canvas)
+	db.GetLatest(&userID, "user", canvas)
 	for {
 
 		// increment ID
-		trackID++
+		userID++
 
 		// attempt to get info on trackID
-		api.Path = "tracks/" + strconv.Itoa(trackID)
+		api.Path = "users/" + strconv.Itoa(userID)
 
 		// try and communicate
 		communicate(api, canvas)

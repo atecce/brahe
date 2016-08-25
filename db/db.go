@@ -12,24 +12,21 @@ import (
 func Initiate() *sql.DB {
 
 	// create database
+	query := `CREATE DATABASE IF NOT EXISTS canvas`
 	if canvas, err := sql.Open("mysql", "root:@tcp(127.0.0.1:3306)/"); err != nil {
 		panic(err)
 	} else {
-		if result, err := canvas.Exec(`CREATE DATABASE IF NOT EXISTS canvas`); err != nil {
+		if result, err := canvas.Exec(query); err != nil {
 			panic(err)
 		} else {
-			logResult(result)
+			logResult(query, result)
 
 			// use the database
-			if result, err := canvas.Exec(`USE canvas`); err != nil {
+			query = `USE canvas`
+			if result, err := canvas.Exec(query); err != nil {
 				panic(err)
 			} else {
-				logResult(result)
-
-				// create tables
-				addTable("track", canvas)
-				addTable("user", canvas)
-				addTable("label", canvas)
+				logResult(query, result)
 
 				return canvas
 			}
@@ -45,11 +42,18 @@ func AddRow(table string, row map[string]interface{}, canvas *sql.DB) {
 	for column, value := range row {
 
 		// make sure field isn't empty
-		if row[column] != nil && row[column] != "" {
+		if value != nil && value != "" {
 
 			// recursion WTF
 			if column == "user" || column == "label" {
+				AddTable(column, canvas)
 				AddRow(column, value.(map[string]interface{}), canvas)
+				continue
+			} else if column == "subscriptions" {
+				AddTable(column, canvas)
+				for _, entry := range value.([]interface{}) {
+					log.Println(entry)
+				}
 				continue
 			} else {
 
@@ -125,26 +129,31 @@ func AddRow(table string, row map[string]interface{}, canvas *sql.DB) {
 			}
 		} else {
 
-			logResult(result)
+			logResult(query, result)
 		}
 	}
 }
 
-func logResult(result sql.Result) {
+func logResult(query string, result sql.Result) {
 	if lastID, err := result.LastInsertId(); err != nil {
 		panic(err)
 	} else {
 		if rowsAffected, err := result.RowsAffected(); err != nil {
 			panic(err)
 		} else {
+			log.Println(query)
 			log.Printf("Last ID: %d; Rows affected: %d", lastID, rowsAffected)
 		}
 	}
 }
 
-func GetLatest(trackID *int, canvas *sql.DB) {
-	if err := canvas.QueryRow(`SELECT MAX(id) FROM track`).
-		Scan(trackID); err != nil {
-		panic(err)
+func GetLatest(id *int, table string, canvas *sql.DB) {
+	if err := canvas.QueryRow(`SELECT MAX(id) FROM ` + table).
+		Scan(id); err != nil {
+		if err.Error() == `sql: Scan error on column index 0:
+		converting driver.Value type <nil> ("<nil>") to a int: invalid syntax` {
+		} else {
+			panic(err)
+		}
 	}
 }

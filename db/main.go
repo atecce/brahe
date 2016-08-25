@@ -44,20 +44,21 @@ func addColumn(column, table string, columnType reflect.Type, canvas *sql.DB) {
 	}
 
 	// add column name and type
-	if result, err := canvas.Exec(`ALTER TABLE ` + table + ` ADD ` +
-		column + ` ` + goToMySQL[columnType.String()]); err != nil {
+	query := `ALTER TABLE ` + table + ` ADD ` + column + ` ` + goToMySQL[columnType.String()]
+	if result, err := canvas.Exec(query); err != nil {
 		panic(err)
 	} else {
-		logResult(result)
+		logResult(query, result)
 	}
 }
 
-func addTable(name string, canvas *sql.DB) {
-	if result, err := canvas.Exec(`CREATE TABLE IF NOT EXISTS ` + name + ` (
+func AddTable(name string, canvas *sql.DB) {
+	query := `CREATE TABLE IF NOT EXISTS ` + name + ` (
 		id INTEGER NOT NULL,
-		PRIMARY KEY (id))`); err != nil {
+		PRIMARY KEY (id))`
+	if result, err := canvas.Exec(query); err != nil {
 		panic(err)
 	} else {
-		logResult(result)
+		logResult(query, result)
 	}
 }
