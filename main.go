@@ -1,16 +1,11 @@
 package main
 
 import (
+	"bodhi/connection"
 	"bodhi/db"
-	"database/sql"
-	"encoding/json"
-	"io"
-	"log"
-	"net/http"
 	"net/url"
 	"os"
 	"strconv"
-	"time"
 )
 
 //const trackID = 5151298
@@ -22,54 +17,6 @@ var api = &url.URL{
 	RawQuery: "client_id=" + os.Getenv("CLIENT_ID"),
 }
 
-func communicate(api *url.URL, canvas *sql.DB) {
-
-	// never stop trying
-	for {
-
-		if resp, err := http.Get(api.String()); err != nil {
-			panic(err)
-		} else {
-			defer resp.Body.Close()
-			log.Printf("%s %s", api.Path, resp.Status)
-
-			switch resp.StatusCode {
-			case 404:
-				return
-			case 502:
-				time.Sleep(time.Minute)
-			default:
-				decode(resp, canvas)
-				return
-			}
-		}
-	}
-}
-
-func decode(resp *http.Response, canvas *sql.DB) {
-
-	// set decoder
-	dec := json.NewDecoder(resp.Body)
-
-	// read until break
-	for {
-
-		// initalize track info
-		var user map[string]interface{}
-
-		// break on EOF
-		if err := dec.Decode(&user); err == io.EOF {
-			log.Println("JSON", err)
-			break
-		} else if err != nil {
-			panic(err)
-		}
-
-		// add track to canvas
-		db.AddRow("user", user, canvas)
-	}
-}
-
 func main() {
 
 	// set the canvas
@@ -77,18 +24,18 @@ func main() {
 	defer canvas.Close()
 
 	// start counter at last ID
-	var userID int
-	db.AddTable("user", canvas)
-	db.GetLatest(&userID, "user", canvas)
+	var trackID int
+	db.AddTable("track", canvas)
+	db.GetLatest(&trackID, "track", canvas)
 	for {
 
 		// increment ID
-		userID++
+		trackID++
 
 		// attempt to get info on trackID
-		api.Path = "users/" + strconv.Itoa(userID)
+		api.Path = "tracks/" + strconv.Itoa(trackID)
 
 		// try and communicate
-		communicate(api, canvas)
+		connection.Communicate(api, canvas)
 	}
 }

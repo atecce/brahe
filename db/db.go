@@ -12,10 +12,10 @@ import (
 func Initiate() *sql.DB {
 
 	// create database
-	query := `CREATE DATABASE IF NOT EXISTS canvas`
 	if canvas, err := sql.Open("mysql", "root:@tcp(127.0.0.1:3306)/"); err != nil {
 		panic(err)
 	} else {
+		query := `CREATE DATABASE IF NOT EXISTS canvas`
 		if result, err := canvas.Exec(query); err != nil {
 			panic(err)
 		} else {
@@ -44,17 +44,14 @@ func AddRow(table string, row map[string]interface{}, canvas *sql.DB) {
 		// make sure field isn't empty
 		if value != nil && value != "" {
 
-			// recursion WTF
-			if column == "user" || column == "label" {
+			// create a new table for additional map
+			if reflect.ValueOf(value).Kind() == reflect.Map {
 				AddTable(column, canvas)
+
+				// recursion WTF
 				AddRow(column, value.(map[string]interface{}), canvas)
 				continue
-			} else if column == "subscriptions" {
-				AddTable(column, canvas)
-				for _, entry := range value.([]interface{}) {
-					log.Println(entry)
-				}
-				continue
+
 			} else {
 
 				// special case for reserved MySQL word
@@ -150,8 +147,7 @@ func logResult(query string, result sql.Result) {
 func GetLatest(id *int, table string, canvas *sql.DB) {
 	if err := canvas.QueryRow(`SELECT MAX(id) FROM ` + table).
 		Scan(id); err != nil {
-		if err.Error() == `sql: Scan error on column index 0:
-		converting driver.Value type <nil> ("<nil>") to a int: invalid syntax` {
+		if err.Error() == `sql: Scan error on column index 0: converting driver.Value type <nil> ("<nil>") to a int: invalid syntax` {
 		} else {
 			panic(err)
 		}

@@ -1,54 +1,60 @@
-package communication
+package connection
 
 import (
+	"bodhi/db"
+	"database/sql"
+	"encoding/json"
+	"io"
 	"log"
 	"net/http"
+	"net/url"
 	"time"
-
-	"golang.org/x/net/html"
 )
 
-func Communicate(url string) (bool, *html.Node) {
+func Communicate(api *url.URL, canvas *sql.DB) {
 
 	// never stop trying
 	for {
 
-		// get url
-		resp, err := http.Get(url)
-		if err != nil {
-			log.Println(err)
-			time.Sleep(time.Second)
-			continue
-		}
-		defer resp.Body.Close()
+		if resp, err := http.Get(api.String()); err != nil {
+			panic(err)
+		} else {
+			defer resp.Body.Close()
+			log.Printf("%s %s", api.Path, resp.Status)
 
-		// get root node
-		root, err := html.Parse(resp.Body)
-		if err != nil {
+			switch resp.StatusCode {
+			case 404:
+				return
+			case 502:
+				time.Sleep(time.Minute)
+			default:
+				decode(resp, canvas)
+				return
+			}
+		}
+	}
+}
+
+func decode(resp *http.Response, canvas *sql.DB) {
+
+	// set decoder
+	dec := json.NewDecoder(resp.Body)
+
+	// read until break
+	for {
+
+		// initalize track info
+		var track map[string]interface{}
+
+		// break on EOF
+		if err := dec.Decode(&track); err == io.EOF {
+			log.Println("JSON", err)
+			break
+		} else if err != nil {
 			panic(err)
 		}
 
-		// write status to output
-		//fmt.Println(time.Now(), url, resp.Status)
-
-		// check status codes
-		switch resp.StatusCode {
-
-		// cases which are returned
-		case 200:
-			return false, root
-		case 403:
-			return true, root
-		case 404:
-			return true, root
-
-		// cases which are retried
-		case 503:
-			time.Sleep(30 * time.Minute)
-		case 504:
-			time.Sleep(time.Minute)
-		default:
-			time.Sleep(time.Minute)
-		}
+		// add track to canvas
+		db.AddRow("track", track, canvas)
 	}
 }
