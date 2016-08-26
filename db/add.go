@@ -110,54 +110,55 @@ func AddRow(table string, row map[string]interface{}, canvas *sql.DB) {
 	query := constructQuery(table, columns)
 
 	// prepare statment
-	if stmt, err := canvas.Prepare(query); err != nil {
-		if prepareErr, ok := err.(*mysql.MySQLError); ok {
+	stmt, err := canvas.Prepare(query)
+	if err != nil {
 
-			// handle unknown column
-			if prepareErr.Number == 1054 {
+		// assert error is MySQL specific
+		prepareErr := err.(*mysql.MySQLError)
 
-				// column name is second field delimited with single quotes
-				unknownColumn := strings.Split(prepareErr.Message, "'")[1]
+		// handle unknown column
+		if prepareErr.Number == 1054 {
 
-				// handle special case for MySQL keyword
-				var columnType reflect.Type
-				if unknownColumn == "release_number" {
-					columnType = reflect.TypeOf(row["release"])
-				} else {
-					columnType = reflect.TypeOf(row[unknownColumn])
-				}
+			// column name is second field delimited with single quotes
+			unknownColumn := strings.Split(prepareErr.Message, "'")[1]
 
-				// add column and try to add the row again
-				addColumn(unknownColumn, table, columnType, canvas)
-				AddRow(table, row, canvas)
-
+			// handle special case for MySQL keyword
+			var columnType reflect.Type
+			if unknownColumn == "release_number" {
+				columnType = reflect.TypeOf(row["release"])
 			} else {
-				panic(err)
+				columnType = reflect.TypeOf(row[unknownColumn])
 			}
+
+			// add column and try to add the row again
+			addColumn(unknownColumn, table, columnType, canvas)
+			AddRow(table, row, canvas)
+
 		} else {
-			panic(err)
+			panic(prepareErr)
 		}
 	} else {
 		defer stmt.Close()
 
 		// insert row
-		if _, err := stmt.Exec(values...); err != nil {
-			if execErr, ok := err.(*mysql.MySQLError); ok {
+		_, err := stmt.Exec(values...)
+		if err != nil {
 
-				// handle bananas characters
-				if execErr.Number == 1366 {
+			// assert error is MySQL specific
+			execErr := err.(*mysql.MySQLError)
 
-					// error message convenienty delimted by '
-					problemColumn := strings.Split(execErr.Message, "'")[3]
-					problemValue := strings.Split(execErr.Message, "'")[1]
+			// handle bananas characters
+			if execErr.Number == 1366 {
 
-					// reset as string
-					row[problemColumn] = problemValue
-				} else {
-					panic(err)
-				}
+				// error message convenienty delimted by '
+				problemColumn := strings.Split(execErr.Message, "'")[3]
+				problemValue := strings.Split(execErr.Message, "'")[1]
+
+				// reset as string
+				row[problemColumn] = problemValue
+
 			} else {
-				panic(err)
+				panic(execErr)
 			}
 		} else {
 
