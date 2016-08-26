@@ -34,6 +34,7 @@ func Initiate() *sql.DB {
 }
 
 func AddTable(name string, canvas *sql.DB) {
+
 	query := `CREATE TABLE IF NOT EXISTS ` + name + ` (id INTEGER NOT NULL, PRIMARY KEY (id))`
 	result, err := canvas.Exec(query)
 	dbLog.Println(query, result)
@@ -62,7 +63,7 @@ func addColumn(column, table string, columnType reflect.Type, canvas *sql.DB) {
 	}
 }
 
-func AddRow(table string, row map[string]interface{}, canvas *sql.DB) {
+func splitMap(row map[string]interface{}, canvas *sql.DB) ([]string, []interface{}) {
 
 	// add columns and values to query
 	var columns []string
@@ -96,6 +97,14 @@ func AddRow(table string, row map[string]interface{}, canvas *sql.DB) {
 			}
 		}
 	}
+
+	return columns, values
+}
+
+func AddRow(table string, row map[string]interface{}, canvas *sql.DB) {
+
+	// split map into columns and values
+	columns, values := splitMap(row, canvas)
 
 	// construct query out of lists
 	query := constructQuery(table, columns)
