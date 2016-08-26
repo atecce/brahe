@@ -2,14 +2,16 @@ package connection
 
 import (
 	"bodhi/db"
+	"bodhi/herodotus"
 	"database/sql"
 	"encoding/json"
 	"io"
-	"log"
 	"net/http"
 	"net/url"
 	"time"
 )
+
+var httpLog = herodotus.CreateFileLog("http")
 
 func Communicate(api *url.URL, canvas *sql.DB) {
 
@@ -20,7 +22,7 @@ func Communicate(api *url.URL, canvas *sql.DB) {
 			panic(err)
 		} else {
 			defer resp.Body.Close()
-			log.Printf("%s %s", api.Path, resp.Status)
+			httpLog.Printf("%s %s", api.Path, resp.Status)
 
 			switch resp.StatusCode {
 			case 404:
@@ -48,7 +50,7 @@ func decode(resp *http.Response, canvas *sql.DB) {
 
 		// break on EOF
 		if err := dec.Decode(&track); err == io.EOF {
-			log.Println("JSON", err)
+			httpLog.Println(err)
 			break
 		} else if err != nil {
 			panic(err)

@@ -1,9 +1,6 @@
 package db
 
-import (
-	"database/sql"
-	"log"
-)
+import "database/sql"
 
 func constructQuery(table string, columns []string) string {
 
@@ -29,19 +26,6 @@ func constructQuery(table string, columns []string) string {
 	query = query[0 : len(query)-2]
 
 	return query
-}
-
-func logResult(query string, result sql.Result) {
-	if lastID, err := result.LastInsertId(); err != nil {
-		panic(err)
-	} else {
-		if rowsAffected, err := result.RowsAffected(); err != nil {
-			panic(err)
-		} else {
-			log.Println(query)
-			log.Printf("Last ID: %d; Rows affected: %d", lastID, rowsAffected)
-		}
-	}
 }
 
 func GetLatest(id *int, table string, canvas *sql.DB) {

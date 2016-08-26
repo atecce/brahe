@@ -1,53 +1,49 @@
 package db
 
 import (
+	"bodhi/herodotus"
 	"database/sql"
-	"log"
 	"reflect"
 	"strings"
 
 	"github.com/go-sql-driver/mysql"
 )
 
+var dbLog = herodotus.CreateFileLog("db")
+
 func Initiate() *sql.DB {
 
-	// create database
-	if canvas, err := sql.Open("mysql", "root:@tcp(127.0.0.1:3306)/"); err != nil {
+	// connect
+	canvas, err := sql.Open("mysql", "root:@tcp(127.0.0.1:3306)/")
+
+	// create
+	query := `CREATE DATABASE IF NOT EXISTS canvas`
+	_, err = canvas.Exec(query)
+	dbLog.Println(query)
+
+	// use
+	query = `USE canvas`
+	_, err = canvas.Exec(query)
+	dbLog.Println(query)
+
+	if err != nil {
 		panic(err)
-	} else {
-		query := `CREATE DATABASE IF NOT EXISTS canvas`
-		if result, err := canvas.Exec(query); err != nil {
-			panic(err)
-		} else {
-			logResult(query, result)
-
-			// use the database
-			query = `USE canvas`
-			if result, err := canvas.Exec(query); err != nil {
-				panic(err)
-			} else {
-				logResult(query, result)
-
-				return canvas
-			}
-		}
 	}
+
+	return canvas
 }
 
 func AddTable(name string, canvas *sql.DB) {
-	query := `CREATE TABLE IF NOT EXISTS ` + name + ` (
-		id INTEGER NOT NULL,
-		PRIMARY KEY (id))`
-	if result, err := canvas.Exec(query); err != nil {
+	query := `CREATE TABLE IF NOT EXISTS ` + name + ` (id INTEGER NOT NULL, PRIMARY KEY (id))`
+	result, err := canvas.Exec(query)
+	dbLog.Println(query, result)
+
+	if err != nil {
 		panic(err)
-	} else {
-		logResult(query, result)
 	}
 }
 
 func addColumn(column, table string, columnType reflect.Type, canvas *sql.DB) {
-
-	log.Printf("%s %s", column, columnType)
 
 	// map for conversion between go and mysql data types
 	goToMySQL := map[string]string{
@@ -58,10 +54,11 @@ func addColumn(column, table string, columnType reflect.Type, canvas *sql.DB) {
 
 	// add column name and type
 	query := `ALTER TABLE ` + table + ` ADD ` + column + ` ` + goToMySQL[columnType.String()]
-	if result, err := canvas.Exec(query); err != nil {
+	_, err := canvas.Exec(query)
+	dbLog.Println(query)
+
+	if err != nil {
 		panic(err)
-	} else {
-		logResult(query, result)
 	}
 }
 
@@ -103,8 +100,6 @@ func AddRow(table string, row map[string]interface{}, canvas *sql.DB) {
 	// construct query out of lists
 	query := constructQuery(table, columns)
 
-	// log.Println(query)
-
 	// prepare statment
 	if stmt, err := canvas.Prepare(query); err != nil {
 		if prepareErr, ok := err.(*mysql.MySQLError); ok {
@@ -130,22 +125,22 @@ func AddRow(table string, row map[string]interface{}, canvas *sql.DB) {
 			} else {
 				panic(err)
 			}
+		} else {
+			panic(err)
 		}
 	} else {
 		defer stmt.Close()
 
 		// insert row
-		if result, err := stmt.Exec(values...); err != nil {
+		if _, err := stmt.Exec(values...); err != nil {
 			if execErr, ok := err.(*mysql.MySQLError); ok {
 
 				// handle bananas characters
 				if execErr.Number == 1366 {
-					log.Println(values)
 
 					// error message convenienty delimted by '
 					problemColumn := strings.Split(execErr.Message, "'")[3]
 					problemValue := strings.Split(execErr.Message, "'")[1]
-					log.Println(problemColumn, problemValue, reflect.TypeOf(problemValue))
 
 					// reset as string
 					row[problemColumn] = problemValue
@@ -157,7 +152,8 @@ func AddRow(table string, row map[string]interface{}, canvas *sql.DB) {
 			}
 		} else {
 
-			logResult(query, result)
+			// log only values of insert query
+			dbLog.Println("INSERT INTO ", columns, "VALUES ", values)
 		}
 	}
 }
