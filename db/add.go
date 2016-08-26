@@ -34,6 +34,37 @@ func Initiate() *sql.DB {
 	}
 }
 
+func AddTable(name string, canvas *sql.DB) {
+	query := `CREATE TABLE IF NOT EXISTS ` + name + ` (
+		id INTEGER NOT NULL,
+		PRIMARY KEY (id))`
+	if result, err := canvas.Exec(query); err != nil {
+		panic(err)
+	} else {
+		logResult(query, result)
+	}
+}
+
+func addColumn(column, table string, columnType reflect.Type, canvas *sql.DB) {
+
+	log.Printf("%s %s", column, columnType)
+
+	// map for conversion between go and mysql data types
+	goToMySQL := map[string]string{
+		"bool":    "BOOL",
+		"float64": "FLOAT",
+		"string":  "TEXT",
+	}
+
+	// add column name and type
+	query := `ALTER TABLE ` + table + ` ADD ` + column + ` ` + goToMySQL[columnType.String()]
+	if result, err := canvas.Exec(query); err != nil {
+		panic(err)
+	} else {
+		logResult(query, result)
+	}
+}
+
 func AddRow(table string, row map[string]interface{}, canvas *sql.DB) {
 
 	// add columns and values to query
@@ -127,29 +158,6 @@ func AddRow(table string, row map[string]interface{}, canvas *sql.DB) {
 		} else {
 
 			logResult(query, result)
-		}
-	}
-}
-
-func logResult(query string, result sql.Result) {
-	if lastID, err := result.LastInsertId(); err != nil {
-		panic(err)
-	} else {
-		if rowsAffected, err := result.RowsAffected(); err != nil {
-			panic(err)
-		} else {
-			log.Println(query)
-			log.Printf("Last ID: %d; Rows affected: %d", lastID, rowsAffected)
-		}
-	}
-}
-
-func GetLatest(id *int, table string, canvas *sql.DB) {
-	if err := canvas.QueryRow(`SELECT MAX(id) FROM ` + table).
-		Scan(id); err != nil {
-		if err.Error() == `sql: Scan error on column index 0: converting driver.Value type <nil> ("<nil>") to a int: invalid syntax` {
-		} else {
-			panic(err)
 		}
 	}
 }
