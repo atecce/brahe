@@ -3,6 +3,9 @@ package db
 import (
 	"database/sql"
 	"reflect"
+	"strings"
+
+	"github.com/go-sql-driver/mysql"
 )
 
 func constructQuery(table string, columns []string) string {
@@ -67,6 +70,43 @@ func splitMap(row map[string]interface{}, canvas *sql.DB) ([]string, []interface
 	}
 
 	return columns, values
+}
+
+func checkMySQLerr(table string, row map[string]interface{}, canvas *sql.DB, mysqlErr *mysql.MySQLError) {
+
+	switch mysqlErr.Number {
+
+	// handle unknown column
+	case 1054:
+
+		// column name is second field delimited with single quotes
+		unknownColumn := strings.Split(mysqlErr.Message, "'")[1]
+
+		// handle special case for MySQL keyword
+		var columnType reflect.Type
+		if unknownColumn == "release_number" {
+			columnType = reflect.TypeOf(row["release"])
+		} else {
+			columnType = reflect.TypeOf(row[unknownColumn])
+		}
+
+		// add column and try to add the row again
+		addColumn(unknownColumn, table, columnType, canvas)
+		AddRow(table, row, canvas)
+
+	// handle bananas characters
+	case 1366:
+
+		// error message convenienty delimted by '
+		problemColumn := strings.Split(mysqlErr.Message, "'")[3]
+		problemValue := strings.Split(mysqlErr.Message, "'")[1]
+
+		// reset as string
+		row[problemColumn] = problemValue
+
+	default:
+		panic(mysqlErr)
+	}
 }
 
 func GetLatest(id *int, table string, canvas *sql.DB) {

@@ -4,7 +4,6 @@ import (
 	"bodhi/herodotus"
 	"database/sql"
 	"reflect"
-	"strings"
 
 	"github.com/go-sql-driver/mysql"
 )
@@ -63,43 +62,6 @@ func addColumn(column, table string, columnType reflect.Type, canvas *sql.DB) {
 	}
 }
 
-func checkMySQLerr(table string, row map[string]interface{}, canvas *sql.DB, mysqlErr *mysql.MySQLError) {
-
-	switch mysqlErr.Number {
-
-	// handle unknown column
-	case 1054:
-
-		// column name is second field delimited with single quotes
-		unknownColumn := strings.Split(mysqlErr.Message, "'")[1]
-
-		// handle special case for MySQL keyword
-		var columnType reflect.Type
-		if unknownColumn == "release_number" {
-			columnType = reflect.TypeOf(row["release"])
-		} else {
-			columnType = reflect.TypeOf(row[unknownColumn])
-		}
-
-		// add column and try to add the row again
-		addColumn(unknownColumn, table, columnType, canvas)
-		AddRow(table, row, canvas)
-
-	// handle bananas characters
-	case 1366:
-
-		// error message convenienty delimted by '
-		problemColumn := strings.Split(mysqlErr.Message, "'")[3]
-		problemValue := strings.Split(mysqlErr.Message, "'")[1]
-
-		// reset as string
-		row[problemColumn] = problemValue
-
-	default:
-		panic(mysqlErr)
-	}
-}
-
 func AddRow(table string, row map[string]interface{}, canvas *sql.DB) {
 
 	// split map into columns and values
@@ -128,7 +90,7 @@ func AddRow(table string, row map[string]interface{}, canvas *sql.DB) {
 		} else {
 
 			// log only values of insert query
-			dbLog.Println("INSERT INTO ", columns, "VALUES ", values)
+			dbLog.Println("INSERT INTO", columns, "VALUES", values)
 		}
 	}
 }

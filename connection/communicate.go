@@ -18,21 +18,21 @@ func Communicate(api *url.URL, canvas *sql.DB) {
 	// never stop trying
 	for {
 
-		if resp, err := http.Get(api.String()); err != nil {
+		resp, err := http.Get(api.String())
+		if err != nil {
 			panic(err)
-		} else {
-			defer resp.Body.Close()
-			httpLog.Printf("%s %s", api.Path, resp.Status)
+		}
+		defer resp.Body.Close()
+		httpLog.Printf("%s %s", api.Path, resp.Status)
 
-			switch resp.StatusCode {
-			case 404:
-				return
-			case 502:
-				time.Sleep(time.Minute)
-			default:
-				decode(resp, canvas)
-				return
-			}
+		switch resp.StatusCode {
+		case 404:
+			return
+		case 502:
+			time.Sleep(time.Minute)
+		default:
+			decode(resp, canvas)
+			return
 		}
 	}
 }
