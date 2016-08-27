@@ -3,7 +3,6 @@ package connection
 import (
 	"bodhi/db"
 	"bodhi/herodotus"
-	"database/sql"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -13,7 +12,7 @@ import (
 
 var httpLog = herodotus.CreateFileLog("http")
 
-func Communicate(api *url.URL, canvas *sql.DB) {
+func Communicate(api *url.URL, canvas *db.Canvas) {
 
 	// never stop trying
 	for {
@@ -37,7 +36,7 @@ func Communicate(api *url.URL, canvas *sql.DB) {
 	}
 }
 
-func decode(resp *http.Response, canvas *sql.DB) {
+func decode(resp *http.Response, canvas *db.Canvas) {
 
 	// set decoder
 	dec := json.NewDecoder(resp.Body)
@@ -57,6 +56,6 @@ func decode(resp *http.Response, canvas *sql.DB) {
 		}
 
 		// add track to canvas
-		db.AddRow("track", track, canvas)
+		canvas.AddRow("track", track)
 	}
 }

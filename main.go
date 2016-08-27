@@ -17,16 +17,21 @@ var api = &url.URL{
 	RawQuery: "client_id=" + os.Getenv("CLIENT_ID"),
 }
 
+var canvas = &db.Canvas{
+	Kind: "mysql",
+	URL:  "root:@tcp(127.0.0.1:3306)/",
+	Name: "canvas",
+}
+
 func main() {
 
 	// set the canvas
-	canvas := db.Initiate()
-	defer canvas.Close()
+	canvas.Initiate()
 
 	// start counter at last ID
 	var trackID int
-	db.AddTable("track", canvas)
-	db.GetLatest(&trackID, "track", canvas)
+	canvas.AddTable("track")
+	canvas.GetLatest(&trackID, "track")
 	for {
 
 		// increment ID

@@ -1,14 +1,13 @@
 package db
 
 import (
-	"database/sql"
 	"reflect"
 	"strings"
 
 	"github.com/go-sql-driver/mysql"
 )
 
-func constructQuery(table string, columns []string) string {
+func (canvas *Canvas) constructQuery(table string, columns []string) string {
 
 	// insert columns
 	query := `INSERT INTO ` + table + `(`
@@ -34,7 +33,7 @@ func constructQuery(table string, columns []string) string {
 	return query
 }
 
-func splitMap(row map[string]interface{}, canvas *sql.DB) ([]string, []interface{}) {
+func (canvas *Canvas) splitMap(row map[string]interface{}) ([]string, []interface{}) {
 
 	// add columns and values to query
 	var columns []string
@@ -46,10 +45,10 @@ func splitMap(row map[string]interface{}, canvas *sql.DB) ([]string, []interface
 
 			// create a new table for additional map
 			if reflect.ValueOf(value).Kind() == reflect.Map {
-				AddTable(column, canvas)
+				canvas.AddTable(column)
 
 				// recursion WTF
-				AddRow(column, value.(map[string]interface{}), canvas)
+				canvas.AddRow(column, value.(map[string]interface{}))
 				continue
 
 			} else {
@@ -72,7 +71,7 @@ func splitMap(row map[string]interface{}, canvas *sql.DB) ([]string, []interface
 	return columns, values
 }
 
-func checkMySQLerr(table string, row map[string]interface{}, canvas *sql.DB, mysqlErr *mysql.MySQLError) {
+func (canvas *Canvas) checkMySQLerr(table string, row map[string]interface{}, mysqlErr *mysql.MySQLError) {
 
 	switch mysqlErr.Number {
 
@@ -91,8 +90,8 @@ func checkMySQLerr(table string, row map[string]interface{}, canvas *sql.DB, mys
 		}
 
 		// add column and try to add the row again
-		addColumn(unknownColumn, table, columnType, canvas)
-		AddRow(table, row, canvas)
+		canvas.addColumn(unknownColumn, table, columnType)
+		canvas.AddRow(table, row)
 
 	// handle bananas characters
 	case 1366:
@@ -109,8 +108,8 @@ func checkMySQLerr(table string, row map[string]interface{}, canvas *sql.DB, mys
 	}
 }
 
-func GetLatest(id *int, table string, canvas *sql.DB) {
-	if err := canvas.QueryRow(`SELECT MAX(id) FROM ` + table).
+func (canvas *Canvas) GetLatest(id *int, table string) {
+	if err := canvas.con.QueryRow(`SELECT MAX(id) FROM ` + table).
 		Scan(id); err != nil {
 		if err.Error() == `sql: Scan error on column index 0: converting driver.Value type <nil> ("<nil>") to a int: invalid syntax` {
 		} else {
