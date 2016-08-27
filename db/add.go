@@ -63,6 +63,43 @@ func addColumn(column, table string, columnType reflect.Type, canvas *sql.DB) {
 	}
 }
 
+func checkMySQLerr(table string, row map[string]interface{}, canvas *sql.DB, mysqlErr *mysql.MySQLError) {
+
+	switch mysqlErr.Number {
+
+	// handle unknown column
+	case 1054:
+
+		// column name is second field delimited with single quotes
+		unknownColumn := strings.Split(mysqlErr.Message, "'")[1]
+
+		// handle special case for MySQL keyword
+		var columnType reflect.Type
+		if unknownColumn == "release_number" {
+			columnType = reflect.TypeOf(row["release"])
+		} else {
+			columnType = reflect.TypeOf(row[unknownColumn])
+		}
+
+		// add column and try to add the row again
+		addColumn(unknownColumn, table, columnType, canvas)
+		AddRow(table, row, canvas)
+
+	// handle bananas characters
+	case 1366:
+
+		// error message convenienty delimted by '
+		problemColumn := strings.Split(mysqlErr.Message, "'")[3]
+		problemValue := strings.Split(mysqlErr.Message, "'")[1]
+
+		// reset as string
+		row[problemColumn] = problemValue
+
+	default:
+		panic(mysqlErr)
+	}
+}
+
 func AddRow(table string, row map[string]interface{}, canvas *sql.DB) {
 
 	// split map into columns and values
@@ -76,29 +113,8 @@ func AddRow(table string, row map[string]interface{}, canvas *sql.DB) {
 	if err != nil {
 
 		// assert error is MySQL specific
-		prepareErr := err.(*mysql.MySQLError)
+		checkMySQLerr(table, row, canvas, err.(*mysql.MySQLError))
 
-		// handle unknown column
-		if prepareErr.Number == 1054 {
-
-			// column name is second field delimited with single quotes
-			unknownColumn := strings.Split(prepareErr.Message, "'")[1]
-
-			// handle special case for MySQL keyword
-			var columnType reflect.Type
-			if unknownColumn == "release_number" {
-				columnType = reflect.TypeOf(row["release"])
-			} else {
-				columnType = reflect.TypeOf(row[unknownColumn])
-			}
-
-			// add column and try to add the row again
-			addColumn(unknownColumn, table, columnType, canvas)
-			AddRow(table, row, canvas)
-
-		} else {
-			panic(prepareErr)
-		}
 	} else {
 		defer stmt.Close()
 
@@ -107,21 +123,8 @@ func AddRow(table string, row map[string]interface{}, canvas *sql.DB) {
 		if err != nil {
 
 			// assert error is MySQL specific
-			execErr := err.(*mysql.MySQLError)
+			checkMySQLerr(table, row, canvas, err.(*mysql.MySQLError))
 
-			// handle bananas characters
-			if execErr.Number == 1366 {
-
-				// error message convenienty delimted by '
-				problemColumn := strings.Split(execErr.Message, "'")[3]
-				problemValue := strings.Split(execErr.Message, "'")[1]
-
-				// reset as string
-				row[problemColumn] = problemValue
-
-			} else {
-				panic(execErr)
-			}
 		} else {
 
 			// log only values of insert query
