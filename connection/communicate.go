@@ -10,19 +10,24 @@ import (
 	"time"
 )
 
+type API struct {
+	Method *url.URL
+	Canvas *db.Canvas
+}
+
 var httpLog = herodotus.CreateFileLog("http")
 
-func Communicate(api *url.URL, canvas *db.Canvas) {
+func (api *API) Communicate() {
 
 	// never stop trying
 	for {
 
-		resp, err := http.Get(api.String())
+		resp, err := http.Get(api.Method.String())
 		if err != nil {
 			panic(err)
 		}
 		defer resp.Body.Close()
-		httpLog.Printf("%s %s", api.Path, resp.Status)
+		httpLog.Printf("%s %s", api.Method.Path, resp.Status)
 
 		switch resp.StatusCode {
 		case 404:
@@ -30,13 +35,13 @@ func Communicate(api *url.URL, canvas *db.Canvas) {
 		case 502:
 			time.Sleep(time.Minute)
 		default:
-			decode(resp, canvas)
+			api.decode(resp)
 			return
 		}
 	}
 }
 
-func decode(resp *http.Response, canvas *db.Canvas) {
+func (api API) decode(resp *http.Response) {
 
 	// set decoder
 	dec := json.NewDecoder(resp.Body)
@@ -56,6 +61,6 @@ func decode(resp *http.Response, canvas *db.Canvas) {
 		}
 
 		// add track to canvas
-		canvas.AddRow("track", track)
+		api.Canvas.AddRow("track", track)
 	}
 }
