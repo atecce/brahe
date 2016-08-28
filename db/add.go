@@ -1,14 +1,12 @@
 package db
 
 import (
-	"bodhi/herodotus"
 	"database/sql"
+	"log"
 	"reflect"
 
 	"github.com/go-sql-driver/mysql"
 )
-
-var dbLog = herodotus.CreateFileLog("db")
 
 type Canvas struct {
 	con *sql.DB
@@ -16,6 +14,18 @@ type Canvas struct {
 	Kind string
 	URL  string
 	Name string
+}
+
+func (canvas *Canvas) use() {
+
+	// use
+	query := `USE ` + canvas.Name
+	result, err := canvas.con.Exec(query)
+	log.Println(query, result)
+
+	if err != nil {
+		panic(err)
+	}
 }
 
 func (canvas *Canvas) Initiate() {
@@ -26,13 +36,11 @@ func (canvas *Canvas) Initiate() {
 
 	// create
 	query := `CREATE DATABASE IF NOT EXISTS ` + canvas.Name
-	_, err = canvas.con.Exec(query)
-	dbLog.Println(query)
+	result, err := canvas.con.Exec(query)
+	log.Println(query, result)
 
 	// use
-	query = `USE ` + canvas.Name
-	_, err = canvas.con.Exec(query)
-	dbLog.Println(query)
+	canvas.use()
 
 	if err != nil {
 		panic(err)
@@ -43,10 +51,10 @@ func (canvas *Canvas) AddTable(name string) {
 
 	query := `CREATE TABLE IF NOT EXISTS ` + name + ` (id INTEGER NOT NULL, PRIMARY KEY (id))`
 	result, err := canvas.con.Exec(query)
-	dbLog.Println(query, result)
+	log.Println(query, result)
 
 	if err != nil {
-		panic(err)
+		canvas.checkMySQLerr(name, nil, err.(*mysql.MySQLError))
 	}
 }
 
@@ -61,11 +69,11 @@ func (canvas *Canvas) addColumn(column, table string, columnType reflect.Type) {
 
 	// add column name and type
 	query := `ALTER TABLE ` + table + ` ADD ` + column + ` ` + goToMySQL[columnType.String()]
-	_, err := canvas.con.Exec(query)
-	dbLog.Println(query)
+	result, err := canvas.con.Exec(query)
+	log.Println(query, result)
 
 	if err != nil {
-		panic(err)
+		canvas.checkMySQLerr(table, nil, err.(*mysql.MySQLError))
 	}
 }
 
@@ -88,7 +96,7 @@ func (canvas *Canvas) AddRow(table string, row map[string]interface{}) {
 		defer stmt.Close()
 
 		// insert row
-		_, err := stmt.Exec(values...)
+		result, err := stmt.Exec(values...)
 		if err != nil {
 
 			// assert error is MySQL specific
@@ -97,7 +105,7 @@ func (canvas *Canvas) AddRow(table string, row map[string]interface{}) {
 		} else {
 
 			// log only values of insert query
-			dbLog.Println("INSERT INTO", columns, "VALUES", values)
+			log.Println("INSERT INTO", columns, "VALUES", values, result)
 		}
 	}
 }

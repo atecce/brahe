@@ -1,6 +1,7 @@
 package db
 
 import (
+	"log"
 	"reflect"
 	"strings"
 
@@ -43,15 +44,25 @@ func (canvas *Canvas) splitMap(row map[string]interface{}) ([]string, []interfac
 		// make sure field isn't empty
 		if value != nil && value != "" {
 
+			switch reflect.ValueOf(value).Kind() {
+
+			// create a table for slice TODO
+			case reflect.Slice:
+				canvas.AddTable(column[:len(column)-1])
+				log.Println(column)
+				for _, entry := range value.([]interface{}) {
+					log.Println(entry)
+				}
+
 			// create a new table for additional map
-			if reflect.ValueOf(value).Kind() == reflect.Map {
+			case reflect.Map:
 				canvas.AddTable(column)
 
 				// recursion WTF
 				canvas.AddRow(column, value.(map[string]interface{}))
 				continue
 
-			} else {
+			default:
 
 				// special case for reserved MySQL word
 				var entry string
@@ -75,7 +86,11 @@ func (canvas *Canvas) checkMySQLerr(table string, row map[string]interface{}, my
 
 	switch mysqlErr.Number {
 
-	// handle unknown column
+	// no database selected
+	case 1046:
+		canvas.use()
+
+	// unknown column
 	case 1054:
 
 		// column name is second field delimited with single quotes
@@ -89,11 +104,21 @@ func (canvas *Canvas) checkMySQLerr(table string, row map[string]interface{}, my
 			columnType = reflect.TypeOf(row[unknownColumn])
 		}
 
+		log.Println(columnType)
+
 		// add column and try to add the row again
 		canvas.addColumn(unknownColumn, table, columnType)
 		canvas.AddRow(table, row)
 
-	// handle bananas characters
+	// duplicate columns
+	case 1060:
+		return
+
+	// unknown table
+	case 1146:
+		canvas.AddTable(table)
+
+	// bananas characters
 	case 1366:
 
 		// error message convenienty delimted by '
@@ -108,12 +133,14 @@ func (canvas *Canvas) checkMySQLerr(table string, row map[string]interface{}, my
 	}
 }
 
-func (canvas *Canvas) GetLatest(id *int, table string) {
-	if err := canvas.con.QueryRow(`SELECT MAX(id) FROM ` + table).
-		Scan(id); err != nil {
+func (canvas *Canvas) GetLatest(table string) int {
+	var id int
+	if err := canvas.con.QueryRow(`SELECT MAX(id) FROM ` + table).Scan(&id); err != nil {
 		if err.Error() == `sql: Scan error on column index 0: converting driver.Value type <nil> ("<nil>") to a int: invalid syntax` {
 		} else {
-			panic(err)
+			canvas.checkMySQLerr(table, nil, err.(*mysql.MySQLError))
+			return canvas.GetLatest(table)
 		}
 	}
+	return id
 }

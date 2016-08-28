@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"os"
 	"strconv"
+	"sync"
 )
 
 //const trackID = 5151298
@@ -25,24 +26,37 @@ var api = &connection.API{
 	},
 }
 
+var tables = []string{
+	"user",
+	"track",
+	"playlist",
+	"comment",
+}
+
+var wg sync.WaitGroup
+
 func main() {
 
 	// set the canvas
 	api.Canvas.Initiate()
 
-	// start counter at last ID
-	var trackID int
-	api.Canvas.AddTable("track")
-	api.Canvas.GetLatest(&trackID, "track")
-	for {
+	for _, table := range tables {
 
-		// increment ID
-		trackID++
+		wg.Add(1)
+		go func(table string) {
+			defer wg.Done()
 
-		// attempt to get info on trackID
-		api.Method.Path = "tracks/" + strconv.Itoa(trackID)
+			// start counter at last ID
+			for id := api.Canvas.GetLatest(table); ; id++ {
 
-		// try and communicate
-		api.Communicate()
+				// attempt to get info on trackID
+				api.Method.Path = table + "s/" + strconv.Itoa(id)
+
+				// try and communicate
+				api.Communicate()
+			}
+		}(table)
 	}
+
+	wg.Wait()
 }

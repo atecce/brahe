@@ -2,9 +2,9 @@ package connection
 
 import (
 	"bodhi/db"
-	"bodhi/herodotus"
 	"encoding/json"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
 	"time"
@@ -14,8 +14,6 @@ type API struct {
 	Method *url.URL
 	Canvas *db.Canvas
 }
-
-var httpLog = herodotus.CreateFileLog("http")
 
 func (api *API) Communicate() {
 
@@ -27,7 +25,7 @@ func (api *API) Communicate() {
 			panic(err)
 		}
 		defer resp.Body.Close()
-		httpLog.Printf("%s %s", api.Method.Path, resp.Status)
+		log.Printf("%s %s", api.Method.Path, resp.Status)
 
 		switch resp.StatusCode {
 		case 404:
@@ -35,16 +33,16 @@ func (api *API) Communicate() {
 		case 502:
 			time.Sleep(time.Minute)
 		default:
-			api.decode(resp)
+			api.decode(resp.Body)
 			return
 		}
 	}
 }
 
-func (api API) decode(resp *http.Response) {
+func (api API) decode(body io.Reader) {
 
 	// set decoder
-	dec := json.NewDecoder(resp.Body)
+	dec := json.NewDecoder(body)
 
 	// read until break
 	for {
@@ -54,7 +52,7 @@ func (api API) decode(resp *http.Response) {
 
 		// break on EOF
 		if err := dec.Decode(&track); err == io.EOF {
-			httpLog.Println(err)
+			log.Println(err)
 			break
 		} else if err != nil {
 			panic(err)
