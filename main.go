@@ -3,6 +3,7 @@ package main
 import (
 	"bodhi/connection"
 	"bodhi/db"
+	"log"
 	"net/url"
 	"os"
 	"strconv"
@@ -42,20 +43,27 @@ func main() {
 
 	for _, table := range tables {
 
+		// check for ids already present
+		present := api.Canvas.GetPresent(table)
+		log.Println(present)
+
+		// populate tables concurrently
 		wg.Add(1)
-		go func(table string) {
+		go func(table string, present map[int]bool) {
 			defer wg.Done()
 
-			// start counter at last ID
-			for id := api.Canvas.GetLatest(table); ; id++ {
+			// input entries not entered
+			for id := 0; ; id++ {
+				if !present[id] {
 
-				// attempt to get info on trackID
-				api.Method.Path = table + "s/" + strconv.Itoa(id)
+					// attempt to get info on trackID
+					api.Method.Path = table + "s/" + strconv.Itoa(id)
 
-				// try and communicate
-				api.Communicate()
+					// try and communicate
+					api.Communicate()
+				}
 			}
-		}(table)
+		}(table, present)
 	}
 
 	wg.Wait()

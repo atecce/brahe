@@ -133,14 +133,29 @@ func (canvas *Canvas) checkMySQLerr(table string, row map[string]interface{}, my
 	}
 }
 
-func (canvas *Canvas) GetLatest(table string) int {
-	var id int
-	if err := canvas.con.QueryRow(`SELECT MAX(id) FROM ` + table).Scan(&id); err != nil {
-		if err.Error() == `sql: Scan error on column index 0: converting driver.Value type <nil> ("<nil>") to a int: invalid syntax` {
-		} else {
-			canvas.checkMySQLerr(table, nil, err.(*mysql.MySQLError))
-			return canvas.GetLatest(table)
+func (canvas *Canvas) GetPresent(table string) map[int]bool {
+	rows, err := canvas.con.Query(`SELECT id FROM ` + table)
+	if err != nil {
+		canvas.checkMySQLerr(table, nil, err.(*mysql.MySQLError))
+		return canvas.GetPresent(table)
+	} else {
+		defer rows.Close()
+
+		present := make(map[int]bool)
+
+		log.Println(table, rows, err)
+		for rows.Next() {
+			var id int
+			rows.Scan(&id)
+			present[id] = true
 		}
+
+		err = rows.Err()
+
+		if err != nil {
+			panic(err)
+		}
+
+		return present
 	}
-	return id
 }
