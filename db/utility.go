@@ -133,29 +133,53 @@ func (canvas *Canvas) checkMySQLerr(table string, row map[string]interface{}, my
 	}
 }
 
-func (canvas *Canvas) GetPresent(table string) map[int]bool {
-	rows, err := canvas.con.Query(`SELECT id FROM ` + table)
-	if err != nil {
-		canvas.checkMySQLerr(table, nil, err.(*mysql.MySQLError))
-		return canvas.GetPresent(table)
-	} else {
-		defer rows.Close()
+func (canvas *Canvas) GetMissing(table string) map[int]bool {
 
-		present := make(map[int]bool)
+	// initialize map of missing entries
+	missing := make(map[int]bool)
 
-		log.Println(table, rows, err)
-		for rows.Next() {
-			var id int
-			rows.Scan(&id)
-			present[id] = true
+	// for both missing and not missing
+	for k, v := range map[string]bool{"": false, "missing_": true} {
+
+		// query the database for the id
+		if rows, err := canvas.con.Query(`SELECT id FROM ` + k + table); err != nil {
+
+			// assume error is MySQL specific and try again
+			canvas.checkMySQLerr(k+table, nil, err.(*mysql.MySQLError))
+			return canvas.GetMissing(table)
+		} else {
+			defer rows.Close()
+
+			log.Println(table, rows, err)
+
+			// scan ids into map
+			for rows.Next() {
+				var id int
+				rows.Scan(&id)
+				missing[id] = v
+			}
+
+			err = rows.Err()
+			if err != nil {
+				panic(err)
+			}
 		}
-
-		err = rows.Err()
-
-		if err != nil {
-			panic(err)
-		}
-
-		return present
 	}
+	return missing
+}
+
+func (canvas *Canvas) AddMissing(method string) {
+
+	// split REST method
+	dbInfo := strings.Split(method, "/")
+
+	// table name is first entry without plural
+	table := "missing_" + dbInfo[0][0:len(dbInfo[0])-1]
+
+	// row is an id in the second entry
+	row := map[string]interface{}{"id": dbInfo[1]}
+
+	// add missing entry
+	canvas.AddTable(table)
+	canvas.AddRow(table, row)
 }

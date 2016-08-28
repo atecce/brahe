@@ -41,20 +41,19 @@ func main() {
 	// set the canvas
 	api.Canvas.Initiate()
 
+	// populate tables concurrently
 	for _, table := range tables {
-
-		// check for ids already present
-		present := api.Canvas.GetPresent(table)
-		log.Println(present)
-
-		// populate tables concurrently
 		wg.Add(1)
-		go func(table string, present map[int]bool) {
+		go func(table string) {
 			defer wg.Done()
 
-			// input entries not entered
+			// check for ids already present
+			missing := api.Canvas.GetMissing(table)
+			log.Println(missing)
+
+			// input entries we know about
 			for id := 0; ; id++ {
-				if !present[id] {
+				if _, ok := missing[id]; !ok {
 
 					// attempt to get info on trackID
 					api.Method.Path = table + "s/" + strconv.Itoa(id)
@@ -63,7 +62,7 @@ func main() {
 					api.Communicate()
 				}
 			}
-		}(table, present)
+		}(table)
 	}
 
 	wg.Wait()

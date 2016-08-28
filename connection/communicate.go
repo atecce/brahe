@@ -22,6 +22,7 @@ func (api *API) Communicate() {
 
 		resp, err := http.Get(api.Method.String())
 		if err != nil {
+			log.Println(err.Error())
 			panic(err)
 		}
 		defer resp.Body.Close()
@@ -29,6 +30,7 @@ func (api *API) Communicate() {
 
 		switch resp.StatusCode {
 		case 404:
+			api.Canvas.AddMissing(api.Method.Path)
 			return
 		case 502:
 			time.Sleep(time.Minute)
@@ -55,6 +57,7 @@ func (api API) decode(body io.Reader) {
 			log.Println(err)
 			break
 		} else if err != nil {
+			log.Println(err.Error())
 			panic(err)
 		}
 
