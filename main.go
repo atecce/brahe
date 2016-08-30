@@ -19,12 +19,6 @@ var api = &connection.API{
 		URL:  "root:@tcp(127.0.0.1:3306)/",
 		Name: "canvas",
 	},
-
-	Method: &url.URL{
-		Scheme:   "http",
-		Host:     "api.soundcloud.com",
-		RawQuery: "client_id=" + os.Getenv("CLIENT_ID"),
-	},
 }
 
 var tables = []string{
@@ -40,26 +34,31 @@ func main() {
 
 	// set the canvas
 	api.Canvas.Initiate()
-
-	// populate tables concurrently
 	for _, table := range tables {
+
+		// check for ids already present
+		missing := api.Canvas.GetMissing(table)
+		log.Println(missing)
+
+		// populate tables concurrently
 		wg.Add(1)
 		go func(table string) {
 			defer wg.Done()
-
-			// check for ids already present
-			missing := api.Canvas.GetMissing(table)
-			log.Println(missing)
 
 			// input entries we know about
 			for id := 0; ; id++ {
 				if _, ok := missing[id]; !ok {
 
 					// attempt to get info on trackID
-					api.Method.Path = table + "s/" + strconv.Itoa(id)
+					method := &url.URL{
+						Scheme:   "http",
+						Host:     "api.soundcloud.com",
+						Path:     table + "s/" + strconv.Itoa(id),
+						RawQuery: "client_id=" + os.Getenv("CLIENT_ID"),
+					}
 
 					// try and communicate
-					api.Communicate()
+					api.Communicate(method)
 				}
 			}
 		}(table)

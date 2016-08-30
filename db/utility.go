@@ -15,21 +15,21 @@ func (canvas *Canvas) constructQuery(table string, columns []string) string {
 	for _, column := range columns {
 		query += column + ", "
 	}
-	query = query[0 : len(query)-2]
+	query = query[:len(query)-2]
 
 	// insert values
 	query += `) VALUES (`
 	for _ = range columns {
 		query += "?, "
 	}
-	query = query[0 : len(query)-2]
+	query = query[:len(query)-2]
 
 	// update entire entry on duplicate
 	query += `) ON DUPLICATE KEY UPDATE `
 	for _, column := range columns {
 		query += column + "=VALUES(" + column + "), "
 	}
-	query = query[0 : len(query)-2]
+	query = query[:len(query)-2]
 
 	return query
 }
@@ -104,11 +104,8 @@ func (canvas *Canvas) checkMySQLerr(table string, row map[string]interface{}, my
 			columnType = reflect.TypeOf(row[unknownColumn])
 		}
 
-		log.Println(columnType)
-
-		// add column and try to add the row again
+		// add column
 		canvas.addColumn(unknownColumn, table, columnType)
-		canvas.AddRow(table, row)
 
 	// duplicate columns
 	case 1060:
@@ -166,20 +163,4 @@ func (canvas *Canvas) GetMissing(table string) map[int]bool {
 		}
 	}
 	return missing
-}
-
-func (canvas *Canvas) AddMissing(method string) {
-
-	// split REST method
-	dbInfo := strings.Split(method, "/")
-
-	// table name is first entry without plural
-	table := "missing_" + dbInfo[0][0:len(dbInfo[0])-1]
-
-	// row is an id in the second entry
-	row := map[string]interface{}{"id": dbInfo[1]}
-
-	// add missing entry
-	canvas.AddTable(table)
-	canvas.AddRow(table, row)
 }

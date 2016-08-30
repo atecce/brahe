@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"log"
 	"reflect"
+	"strings"
 
 	"github.com/go-sql-driver/mysql"
 )
@@ -91,6 +92,7 @@ func (canvas *Canvas) AddRow(table string, row map[string]interface{}) {
 
 		// assert error is MySQL specific
 		canvas.checkMySQLerr(table, row, err.(*mysql.MySQLError))
+		canvas.AddRow(table, row)
 
 	} else {
 		defer stmt.Close()
@@ -101,11 +103,28 @@ func (canvas *Canvas) AddRow(table string, row map[string]interface{}) {
 
 			// assert error is MySQL specific
 			canvas.checkMySQLerr(table, row, err.(*mysql.MySQLError))
+			canvas.AddRow(table, row)
 
 		} else {
 
 			// log only values of insert query
-			log.Println("INSERT INTO", columns, "VALUES", values, result)
+			log.Println("INSERT INTO", table, columns, "VALUES", values, result)
 		}
 	}
+}
+
+func (canvas *Canvas) AddMissing(method string) {
+
+	// split REST method
+	dbInfo := strings.Split(method, "/")
+
+	// table name is first entry without plural
+	table := "missing_" + dbInfo[0][:len(dbInfo[0])-1]
+
+	// row is an id in the second entry
+	row := map[string]interface{}{"id": dbInfo[1]}
+
+	// add missing entry
+	canvas.AddTable(table)
+	canvas.AddRow(table, row)
 }

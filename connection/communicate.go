@@ -11,27 +11,29 @@ import (
 )
 
 type API struct {
-	Method *url.URL
 	Canvas *db.Canvas
 }
 
-func (api *API) Communicate() {
+func (api *API) Communicate(method *url.URL) {
 
 	// never stop trying
 	for {
 
-		resp, err := http.Get(api.Method.String())
+		resp, err := http.Get(method.String())
 		if err != nil {
 			log.Println(err.Error())
+			time.Sleep(time.Minute)
 			panic(err)
 		}
 		defer resp.Body.Close()
-		log.Printf("%s %s", api.Method.Path, resp.Status)
+		log.Printf("%s %s", method.Path, resp.Status)
 
 		switch resp.StatusCode {
 		case 404:
-			api.Canvas.AddMissing(api.Method.Path)
+			api.Canvas.AddMissing(method.Path)
 			return
+		case 500:
+			time.Sleep(time.Minute)
 		case 502:
 			time.Sleep(time.Minute)
 		default:
@@ -41,7 +43,7 @@ func (api *API) Communicate() {
 	}
 }
 
-func (api API) decode(body io.Reader) {
+func (api *API) decode(body io.Reader) {
 
 	// set decoder
 	dec := json.NewDecoder(body)
@@ -58,6 +60,7 @@ func (api API) decode(body io.Reader) {
 			break
 		} else if err != nil {
 			log.Println(err.Error())
+			time.Sleep(time.Minute)
 			panic(err)
 		}
 
