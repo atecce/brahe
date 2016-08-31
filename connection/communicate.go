@@ -23,7 +23,7 @@ func (api *API) Communicate(table string, method *url.URL) {
 		if err != nil {
 			log.Println(err.Error())
 			time.Sleep(time.Minute)
-			panic(err)
+			continue
 		}
 		defer resp.Body.Close()
 		log.Printf("%s %s", method.Path, resp.Status)
