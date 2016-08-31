@@ -14,7 +14,7 @@ type API struct {
 	Canvas *db.Canvas
 }
 
-func (api *API) Communicate(method *url.URL) {
+func (api *API) Communicate(table string, method *url.URL) {
 
 	// never stop trying
 	for {
@@ -37,13 +37,13 @@ func (api *API) Communicate(method *url.URL) {
 		case 502:
 			time.Sleep(time.Minute)
 		default:
-			api.decode(resp.Body)
+			api.decode(table, resp.Body)
 			return
 		}
 	}
 }
 
-func (api *API) decode(body io.Reader) {
+func (api *API) decode(table string, body io.Reader) {
 
 	// set decoder
 	dec := json.NewDecoder(body)
@@ -65,6 +65,6 @@ func (api *API) decode(body io.Reader) {
 		}
 
 		// add track to canvas
-		api.Canvas.AddRow("track", track)
+		api.Canvas.AddRow(table, track)
 	}
 }

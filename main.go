@@ -58,7 +58,7 @@ func main() {
 					}
 
 					// try and communicate
-					api.Communicate(method)
+					api.Communicate(table, method)
 				}
 			}
 		}(table)
