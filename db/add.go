@@ -1,6 +1,7 @@
 package db
 
 import (
+	"encoding/json"
 	"log"
 	"reflect"
 
@@ -16,9 +17,12 @@ type Canvas struct {
 
 func (canvas *Canvas) Initiate() {
 
+	// create cluster
 	cluster := gocql.NewCluster(canvas.IP)
 	cluster.ProtoVersion = 4
 	cluster.Keyspace = canvas.Name
+
+	// start session
 	session, err := cluster.CreateSession()
 	if err != nil {
 		panic(err)
@@ -39,43 +43,64 @@ func (canvas *Canvas) AddTable(name string) {
 func (canvas *Canvas) addColumn(column, table string, columnType reflect.Type) {
 
 	// map for conversion between go and mysql data types
-	goToMySQL := map[string]string{
-		"bool":    "BOOL",
+	goToCQL := map[string]string{
+		"bool":    "BOOLEAN",
 		"float64": "FLOAT",
 		"string":  "TEXT",
 	}
 
 	// add column name and type
-	query := `ALTER TABLE ` + table + ` ADD ` + column + ` ` + goToMySQL[columnType.String()]
+	query := `ALTER TABLE ` + table + ` ADD ` + column + ` ` + goToCQL[columnType.String()]
 	err := canvas.Session.Query(query).Exec()
 	if err != nil {
-		panic(err)
+		canvas.checkGoCQLerr(table, nil, err.(gocql.RequestError))
 	}
 	log.Println(query)
 }
 
-func (canvas *Canvas) AddRow(table string, row string) {
+func (canvas *Canvas) AddRow(table string, row map[string]interface{}) {
 
-	// // split map into columns and values
-	// columns, values := canvas.splitMap(row)
-	//
-	// // construct query out of lists
-	// query := canvas.constructQuery(table, columns)
+	for k, v := range row {
 
-	query := "INSERT INTO " + table + " JSON `" + row + "`"
+		if v != nil {
 
-	log.Println(query)
+			switch reflect.ValueOf(v).Kind() {
+
+			// create a table for slice TODO
+			case reflect.Slice:
+				delete(row, k)
+				for _, entry := range v.([]interface{}) {
+					log.Println(entry)
+				}
+
+			// create a new table for additional map
+			case reflect.Map:
+				canvas.AddTable(k)
+				delete(row, k)
+
+				// recursion WTF
+				canvas.AddRow(k, v.(map[string]interface{}))
+				continue
+			}
+		} else {
+			delete(row, k)
+		}
+	}
+
+	raw, err := json.Marshal(row)
+	if err != nil {
+		panic(err)
+	}
 
 	// prepare statment
-	stmt := canvas.Session.Query(query)
-
-	log.Println(stmt)
+	query := `INSERT INTO ` + table + ` JSON ?`
+	stmt := canvas.Session.Query(query, raw)
 
 	// insert row
-	err := stmt.Exec()
+	err = stmt.Exec()
 	if err != nil {
 
-		// assert error is MySQL specific
+		// fix error and try again
 		canvas.checkGoCQLerr(table, row, err.(gocql.RequestError))
 		canvas.AddRow(table, row)
 

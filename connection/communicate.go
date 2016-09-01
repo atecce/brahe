@@ -2,6 +2,7 @@ package connection
 
 import (
 	"bodhi/db"
+	"encoding/json"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -28,6 +29,8 @@ func (api *API) Communicate(table string, method *url.URL) {
 		log.Printf("%s %s", method.Path, resp.Status)
 
 		switch resp.StatusCode {
+		case 403:
+			return
 		case 404:
 			// api.Canvas.AddMissing(method.Path)
 			return
@@ -37,7 +40,16 @@ func (api *API) Communicate(table string, method *url.URL) {
 			time.Sleep(time.Minute)
 		default:
 			body, _ := ioutil.ReadAll(resp.Body)
-			api.Canvas.AddRow(table, string(body))
+
+			// marshal json to type check
+			var row map[string]interface{}
+			err := json.Unmarshal(body, &row)
+			if err != nil {
+				panic(err)
+			}
+			log.Println(row)
+
+			api.Canvas.AddRow(table, row)
 			return
 		}
 	}

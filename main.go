@@ -21,10 +21,10 @@ var api = &connection.API{
 }
 
 var tables = []string{
-	"user",
+	// "user",
 	"track",
-	"playlist",
-	"comment",
+	// "playlist",
+	// "comment",
 }
 
 var wg sync.WaitGroup

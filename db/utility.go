@@ -3,123 +3,53 @@ package db
 import (
 	"log"
 	"reflect"
+	"regexp"
 
 	"github.com/gocql/gocql"
 )
 
-func (canvas *Canvas) constructQuery(table string, columns []string) string {
-
-	// insert columns
-	query := `INSERT INTO ` + table + `(`
-	for _, column := range columns {
-		query += column + ", "
-	}
-	query = query[:len(query)-2]
-
-	// insert values
-	query += `) VALUES (`
-	for _ = range columns {
-		query += "?, "
-	}
-	query = query[:len(query)-2] + ")"
-
-	// update entire entry on duplicate
-	// query += `) ON DUPLICATE KEY UPDATE `
-	// for _, column := range columns {
-	// 	query += column + "=VALUES(" + column + "), "
-	// }
-	// query = query[:len(query)-2]
-
-	return query
-}
-
-func (canvas *Canvas) splitMap(row map[string]interface{}) ([]string, []interface{}) {
-
-	// add columns and values to query
-	var columns []string
-	var values []interface{}
-	for column, value := range row {
-
-		// make sure field isn't empty
-		if value != nil && value != "" {
-
-			switch reflect.ValueOf(value).Kind() {
-
-			// create a table for slice TODO
-			case reflect.Slice:
-				canvas.AddTable(column[:len(column)-1])
-				for _, entry := range value.([]interface{}) {
-					log.Println(entry)
-				}
-
-			// create a new table for additional map
-			// case reflect.Map:
-			// 	canvas.AddTable(column)
-			//
-			// 	// recursion WTF
-			// 	canvas.AddRow(column, value.(map[string]interface{}))
-			// 	continue
-
-			default:
-
-				// special case for reserved MySQL word
-				var entry string
-				if column == "release" {
-					entry = "release_number"
-				} else {
-					entry = column
-				}
-
-				// append columns and values to list
-				columns = append(columns, entry)
-				values = append(values, value)
-			}
-		}
-	}
-
-	return columns, values
-}
-
-func (canvas *Canvas) checkGoCQLerr(table string, row string, err gocql.RequestError) {
+func (canvas *Canvas) checkGoCQLerr(table string, row map[string]interface{}, err gocql.RequestError) {
 
 	switch err.Code() {
 
-	// // unknown column
-	// case 1054:
-	//
-	// 	// column name is second field delimited with single quotes
-	// 	unknownColumn := strings.Split(err.Message(), "'")[1]
-	//
-	// 	// handle special case for MySQL keyword
-	// 	var columnType reflect.Type
-	// 	if unknownColumn == "release_number" {
-	// 		columnType = reflect.TypeOf(row["release"])
-	// 	} else {
-	// 		columnType = reflect.TypeOf(row[unknownColumn])
-	// 	}
-	//
-	// 	// add column
-	// 	canvas.addColumn(unknownColumn, table, columnType)
-	//
-	// // duplicate columns
-	// case 1060:
-	// 	return
-	//
-	// // bananas characters
-	// case 1366:
-	//
-	// 	// error message convenienty delimted by '
-	// 	problemColumn := strings.Split(err.Message(), "'")[3]
-	// 	problemValue := strings.Split(err.Message(), "'")[1]
-	//
-	// 	// reset as string
-	// 	row[problemColumn] = problemValue
-
-	// unknown table
+	// errInvalid in gocql
 	case 8704:
-		log.Println(err.Code())
-		log.Println(err)
-		canvas.AddTable(table)
+
+		log.Println(err.Error())
+
+		// regexes to parse error message
+		missingTable := regexp.MustCompile(`^unconfigured table (.*)$`)
+		missingColumn := regexp.MustCompile(`^JSON values map contains unrecognized column: (.*)$`)
+
+		// check for missing table
+		if missingTable.MatchString(err.Error()) {
+
+			// get missing table name from error message
+			missing := missingTable.FindStringSubmatch(err.Error())[1]
+
+			// add the table
+			canvas.AddTable(missing)
+
+			// check for missing column
+		} else if missingColumn.MatchString(err.Error()) {
+
+			// get missing column from error message
+			column := missingColumn.FindStringSubmatch(err.Error())[1]
+
+			// get type info
+			columnType := reflect.TypeOf(row[column])
+			log.Println(column)
+			log.Println(columnType)
+			if columnType != nil {
+				canvas.addColumn(column, table, columnType)
+			}
+
+		} else {
+
+			log.Println(row)
+			log.Println(err.Code())
+			panic(err)
+		}
 
 	default:
 		log.Println(err.Code())
