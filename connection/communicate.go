@@ -23,7 +23,7 @@ func (api *API) Communicate(table string, method *url.URL) {
 		if err != nil {
 			log.Println(err.Error())
 			time.Sleep(time.Minute)
-			panic(err)
+			continue
 		}
 		defer resp.Body.Close()
 		log.Printf("%s %s", method.Path, resp.Status)
@@ -39,47 +39,26 @@ func (api *API) Communicate(table string, method *url.URL) {
 		case 502:
 			time.Sleep(time.Minute)
 		default:
-			body, _ := ioutil.ReadAll(resp.Body)
-
-			// marshal json to type check
-			var row map[string]interface{}
-			err := json.Unmarshal(body, &row)
+			body, err := ioutil.ReadAll(resp.Body)
 			if err != nil {
 				panic(err)
 			}
-			log.Println(row)
-
-			api.Canvas.AddRow(table, row)
+			api.decode(table, body)
 			return
 		}
 	}
 }
 
-// func (api *API) decode(body io.Reader) {
-//
-// 	test, _ := ioutil.ReadAll(body)
-// 	log.Println(string(test))
-//
-// 	// set decoder
-// 	dec := json.NewDecoder(body)
-//
-// 	// read until break
-// 	for {
-//
-// 		// initalize track info
-// 		var track map[string]interface{}
-//
-// 		// break on EOF
-// 		if err := dec.Decode(&track); err == io.EOF {
-// 			log.Println(err)
-// 			break
-// 		} else if err != nil {
-// 			log.Println(err.Error())
-// 			time.Sleep(time.Minute)
-// 			panic(err)
-// 		}
-//
-// 		// add track to canvas
-// 		api.Canvas.AddRow("track", track)
-// 	}
-// }
+func (api *API) decode(table string, body []byte) {
+
+	// marshal json to type check
+	var row map[string]interface{}
+	err := json.Unmarshal(body, &row)
+	if err != nil {
+		panic(err)
+	}
+	log.Println(row)
+
+	// add track to canvas
+	api.Canvas.AddRow(table, row)
+}
