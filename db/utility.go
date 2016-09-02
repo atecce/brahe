@@ -57,37 +57,32 @@ func (canvas *Canvas) checkGoCQLerr(table string, row map[string]interface{}, er
 	}
 }
 
-// func (canvas *Canvas) GetMissing(table string) map[int]bool {
-//
-// 	// initialize map of missing entries
-// 	missing := make(map[int]bool)
-//
-// 	// for both missing and not missing
-// 	for k, v := range map[string]bool{"": false, "missing_": true} {
-//
-// 		// query the database for the id
-// 		if rows, err := canvas.con.Query(`SELECT id FROM ` + k + table); err != nil {
-//
-// 			// assume error is MySQL specific and try again
-// 			canvas.checkMySQLerr(k+table, nil, err.(*mysql.MySQLError))
-// 			return canvas.GetMissing(table)
-// 		} else {
-// 			defer rows.Close()
-//
-// 			log.Println(table, rows, err)
-//
-// 			// scan ids into map
-// 			for rows.Next() {
-// 				var id int
-// 				rows.Scan(&id)
-// 				missing[id] = v
-// 			}
-//
-// 			err = rows.Err()
-// 			if err != nil {
-// 				panic(err)
-// 			}
-// 		}
-// 	}
-// 	return missing
-// }
+func (canvas *Canvas) GetMissing(table string) map[int]bool {
+
+	// initialize map of missing entries
+	missing := make(map[int]bool)
+
+	// for both missing and not missing
+	for k, v := range map[string]bool{"": false, "missing_": true} {
+
+		// query the database for the id
+		rows := canvas.Session.Query(`SELECT id FROM ` + k + table).Iter()
+
+		log.Println(`SELECT id FROM ` + k + table)
+
+		// scan ids into map
+		var id int
+		for rows.Scan(&id) {
+			missing[id] = v
+			log.Println(id, v)
+		}
+
+		if err := rows.Close(); err != nil {
+
+			// assume error is MySQL specific and try again
+			canvas.checkGoCQLerr(k+table, nil, err.(gocql.RequestError))
+			return canvas.GetMissing(table)
+		}
+	}
+	return missing
+}

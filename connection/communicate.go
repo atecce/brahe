@@ -32,7 +32,7 @@ func (api *API) Communicate(table string, method *url.URL) {
 		case 403:
 			return
 		case 404:
-			// api.Canvas.AddMissing(method.Path)
+			api.Canvas.AddMissing(method.Path)
 			return
 		case 500:
 			time.Sleep(time.Minute)
