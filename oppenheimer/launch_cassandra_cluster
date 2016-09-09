@@ -1,0 +1,19 @@
+#!/bin/bash
+
+# launch ubuntu instances
+aws ec2 run-instances --image-id ami-2d39803a --instance-type t2.micro --key-name testing --count $1
+
+# need to wait for instances to start running
+sleep 60
+
+# get instance domains
+DOMAINS=$(aws ec2 describe-instances --filter Name=instance-state-name,Values=running | grep ASSOCIATION | uniq | cut -f3)
+for domain in $DOMAINS; do
+
+	# install cassandra on each domain
+	ssh -oStrictHostKeyChecking=no -i $AWS_INSTANCE_KEY ubuntu@$domain \
+	'printf "\ndeb http://www.apache.org/dist/cassandra/debian 21x main\ndeb-src http://www.apache.org/dist/cassandra/debian 21x main" | \
+	sudo tee -a /etc/apt/sources.list && gpg --keyserver pgp.mit.edu --recv-keys 749D6EEC0353B12C && gpg --export --armor 749D6EEC0353B12C | \
+	sudo apt-key add - && sudo apt-get update && sudo apt-get -y install cassandra' &
+
+done 

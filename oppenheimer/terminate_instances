@@ -1,0 +1,13 @@
+#!/bin/bash
+
+# get running instances
+aws ec2 describe-instances --filter Name=instance-state-name,Values=running | 
+
+# get lines with instance ID
+grep INSTANCES | 
+
+# instance ID is eigth field 
+cut -f8 | 
+
+# terminate each instance
+while read instanceID; do aws ec2 terminate-instances --instance-id $instanceID; done
