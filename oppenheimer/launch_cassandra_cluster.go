@@ -2,10 +2,12 @@ package main
 
 import (
 	"bytes"
-	"fmt"
 	"io/ioutil"
+	"log"
+	"net"
 	"os"
 	"strconv"
+	"sync"
 	"time"
 
 	"golang.org/x/crypto/ssh"
@@ -15,12 +17,14 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 )
 
-const AMI = "ami-2d39803a"
+const ami = "ami-2d39803a"
+
+var wg sync.WaitGroup
 
 func launchInstances(count int, svc *ec2.EC2) *string {
 
 	params := &ec2.RunInstancesInput{
-		ImageId:      aws.String(AMI),
+		ImageId:      aws.String(ami),
 		MaxCount:     aws.Int64(int64(count)),
 		MinCount:     aws.Int64(int64(count)),
 		InstanceType: aws.String("t2.micro"),
@@ -32,6 +36,101 @@ func launchInstances(count int, svc *ec2.EC2) *string {
 	}
 
 	return reservation.ReservationId
+}
+
+func fetchRunningReservation(reservationID *string, svc *ec2.EC2) *ec2.Reservation {
+
+	// prepare to fetch instance information
+	params := &ec2.DescribeInstancesInput{
+		Filters: []*ec2.Filter{
+			{
+				Name: aws.String("reservation-id"),
+				Values: []*string{
+					reservationID,
+				},
+			},
+		},
+	}
+
+	// start attempting to fetch instances
+	print("Waiting for instance(s) to launch")
+	for {
+
+		// keep the user notified of progress
+		print(".")
+		time.Sleep(time.Second)
+
+		// fetch the instances
+		reservations, err := svc.DescribeInstances(params)
+		if err != nil {
+			panic(err)
+		}
+
+		// check if all the instances in the reservation are running
+		allRunning := true
+		reservation := reservations.Reservations[0]
+		for _, instance := range reservation.Instances {
+			allRunning = allRunning && (*instance.State.Name == "running")
+		}
+		if allRunning {
+			return reservation
+		}
+	}
+}
+
+func prepareSSHclient() *ssh.ClientConfig {
+	key, err := ioutil.ReadFile("/Users/plato/Desktop/testing.pem")
+	if err != nil {
+		panic(err)
+	}
+	signer, err := ssh.ParsePrivateKey(key)
+	if err != nil {
+		panic(err)
+	}
+	auths := []ssh.AuthMethod{ssh.PublicKeys(signer)}
+	config := &ssh.ClientConfig{
+		User: "ubuntu",
+		Auth: auths,
+	}
+	return config
+}
+
+func installCassandra(instance *ec2.Instance) {
+	defer wg.Done()
+	for {
+		conn, err := ssh.Dial("tcp", *instance.PublicDnsName+":22", prepareSSHclient())
+
+		if err != nil {
+			switch t := err.(type) {
+			case *net.OpError:
+				log.Println(t.Error())
+				time.Sleep(time.Second)
+				continue
+			default:
+				panic(err)
+			}
+		}
+		session, err := conn.NewSession()
+		if err != nil {
+			panic(err)
+		}
+		defer session.Close()
+
+		var stdout bytes.Buffer
+		session.Stdout = &stdout
+		addDependency := "printf '\n" +
+			"deb http://www.apache.org/dist/cassandra/debian 21x main\n" +
+			"deb-src http://www.apache.org/dist/cassandra/debian 21x main' | " +
+			"sudo tee -a /etc/apt/sources.list 1>/dev/null"
+		addKey := "gpg --keyserver pgp.mit.edu --recv-keys 749D6EEC0353B12C && " +
+			"gpg --export --armor 749D6EEC0353B12C | " +
+			"sudo apt-key add -"
+		installCassandra := "sudo apt-get update && sudo apt-get -y install cassandra"
+		session.Run(addDependency + " && " + addKey + " && " + installCassandra)
+
+		log.Println(stdout.String())
+		return
+	}
 }
 
 func main() {
@@ -52,82 +151,13 @@ func main() {
 	// launch instance
 	reservationID := launchInstances(count, svc)
 
-	// prepare to fetch instance information
-	params := &ec2.DescribeInstancesInput{
-		Filters: []*ec2.Filter{
-			{
-				Name: aws.String("reservation-id"),
-				Values: []*string{
-					reservationID,
-				},
-			},
-		},
+	// fetch running reservation
+	reservation := fetchRunningReservation(reservationID, svc)
+
+	// install cassandra on all the instances
+	for _, instance := range reservation.Instances {
+		wg.Add(1)
+		go installCassandra(instance)
 	}
-
-	// start attempting to fetch instances
-	reservations := new(ec2.DescribeInstancesOutput)
-	print("Waiting for instance(s) to launch")
-	for {
-
-		// keep the user notified of progress
-		print(".")
-		time.Sleep(time.Second)
-
-		// fetch the instances
-		reservations, err = svc.DescribeInstances(params)
-		if err != nil {
-			panic(err)
-		}
-
-		// check if all the instances in the reservation are running
-		allRunning := true
-		for _, reservation := range reservations.Reservations {
-			for _, instance := range reservation.Instances {
-				allRunning = allRunning && (*instance.State.Name == "running")
-			}
-		}
-		if allRunning {
-			break
-		}
-	}
-	println()
-
-	// prepare SSH client
-	key, err := ioutil.ReadFile("/Users/plato/Desktop/testing.pem")
-	if err != nil {
-		panic(err)
-	}
-	signer, err := ssh.ParsePrivateKey(key)
-	if err != nil {
-		panic(err)
-	}
-	auths := []ssh.AuthMethod{ssh.PublicKeys(signer)}
-	config := &ssh.ClientConfig{
-		User: "ubuntu",
-		Auth: auths,
-	}
-
-	// get the the public domains
-	for _, reservation := range reservations.Reservations {
-		for _, instance := range reservation.Instances {
-			conn, err := ssh.Dial("tcp", *instance.PublicDnsName+":22", config)
-
-			// need to handle a refused connection here
-			if err != nil {
-				panic(err)
-			}
-			session, err := conn.NewSession()
-			if err != nil {
-				panic(err)
-			}
-			defer session.Close()
-
-			var stdout bytes.Buffer
-			session.Stdout = &stdout
-			session.Run("printf '\ndeb http://www.apache.org/dist/cassandra/debian 21x main\ndeb-src http://www.apache.org/dist/cassandra/debian 21x main' | sudo tee -a /etc/apt/sources.list && gpg --keyserver pgp.mit.edu --recv-keys 749D6EEC0353B12C && gpg --export --armor 749D6EEC0353B12C | sudo apt-key add - && sudo apt-get update && sudo apt-get -y install cassandra")
-
-			fmt.Println(stdout.String())
-		}
-	}
-
+	wg.Wait()
 }
