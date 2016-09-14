@@ -1,116 +1,127 @@
 package db
 
 import (
-	"encoding/json"
-	"log"
 	"reflect"
 	"strings"
 
-	"github.com/gocql/gocql"
+	"cloud.google.com/go/bigtable"
+	"golang.org/x/net/context"
 )
 
 type Canvas struct {
-	Kind    string
-	IP      string
-	Name    string
-	Session *gocql.Session
+	Kind   string
+	IP     string
+	Name   string
+	client *bigtable.Client
+	ac     *bigtable.AdminClient
 }
 
 func (canvas *Canvas) Initiate() {
 
-	// create cluster
-	cluster := gocql.NewCluster(canvas.IP)
-	cluster.ProtoVersion = 4
-	cluster.Keyspace = canvas.Name
-
-	// start session
-	session, err := cluster.CreateSession()
+	// create admin client for adding tables and families
+	ac, err := bigtable.NewAdminClient(context.Background(), "telos-143019", "uraniborg")
 	if err != nil {
 		panic(err)
 	}
-	canvas.Session = session
+	canvas.ac = ac
+
+	// create normal client for adding entries
+	client, err := bigtable.NewClient(context.Background(), "telos-143019", "uraniborg")
+	if err != nil {
+		panic(err)
+	}
+	canvas.client = client
 }
 
 func (canvas *Canvas) AddTable(name string) {
 
-	query := `CREATE TABLE IF NOT EXISTS ` + name + ` (id INT, PRIMARY KEY (id))`
-	err := canvas.Session.Query(query).Exec()
+	err := canvas.ac.CreateTable(context.Background(), name)
 	if err != nil {
 		panic(err)
 	}
-	log.Println(query)
+
 }
 
-func (canvas *Canvas) addColumn(column, table string, columnType reflect.Type) {
-
-	// map for conversion between go and mysql data types
-	goToCQL := map[string]string{
-		"bool":    "BOOLEAN",
-		"float64": "FLOAT",
-		"string":  "TEXT",
-	}
-
-	// add column name and type
-	query := `ALTER TABLE ` + table + ` ADD ` + column + ` ` + goToCQL[columnType.String()]
-	err := canvas.Session.Query(query).Exec()
+func (canvas *Canvas) addFamily(table, family string, columnType reflect.Type) {
+	err := canvas.ac.CreateColumnFamily(context.Background(), table, family)
 	if err != nil {
-		canvas.checkGoCQLerr(table, nil, err.(gocql.RequestError))
+		panic(err)
 	}
-	log.Println(query)
 }
 
 func (canvas *Canvas) AddRow(table string, row map[string]interface{}) {
 
-	for k, v := range row {
+	// set id
+	id := row["id"]
 
-		if v != nil {
+	// TODO reflection and ApplyBulk
+	for family, column := range row {
 
-			switch reflect.ValueOf(v).Kind() {
-
-			// create a table for slice TODO
-			case reflect.Slice:
-				delete(row, k)
-				for _, entry := range v.([]interface{}) {
-					log.Println(entry)
-				}
-
-			// create a new table for additional map
-			case reflect.Map:
-				canvas.AddTable(k)
-				delete(row, k)
-
-				// recursion WTF
-				canvas.AddRow(k, v.(map[string]interface{}))
-				continue
-			}
-		} else {
-			delete(row, k)
+		if family == "id" {
+			continue
 		}
+
+		mut := bigtable.NewMutation()
+		mut.Set(family, column.(string), bigtable.ServerTime, id.([]byte))
+
+		tbl := canvas.client.Open(table)
+		err := tbl.Apply(context.Background(), id.(string), mut)
+		if err != nil {
+			panic(err)
+		}
+
 	}
 
-	raw, err := json.Marshal(row)
-	if err != nil {
-		panic(err)
-	}
-
-	// prepare statment
-	query := `INSERT INTO ` + table + ` JSON ?`
-	stmt := canvas.Session.Query(query, raw)
-
-	// insert row
-	err = stmt.Exec()
-	if err != nil {
-
-		// fix error and try again
-		canvas.checkGoCQLerr(table, row, err.(gocql.RequestError))
-		canvas.AddRow(table, row)
-
-	} else {
-
-		// log only values of insert query
-		log.Println(query)
-		// log.Println("INSERT INTO", table, columns, "VALUES", values)
-	}
+	// for k, v := range row {
+	//
+	// 	if v != nil {
+	//
+	// 		switch reflect.ValueOf(v).Kind() {
+	//
+	// 		// create a table for slice TODO
+	// 		case reflect.Slice:
+	// 			delete(row, k)
+	// 			for _, entry := range v.([]interface{}) {
+	// 				log.Println(entry)
+	// 			}
+	//
+	// 		// create a new table for additional map
+	// 		case reflect.Map:
+	// 			canvas.AddTable(k)
+	// 			delete(row, k)
+	//
+	// 			// recursion WTF
+	// 			canvas.AddRow(k, v.(map[string]interface{}))
+	// 			continue
+	// 		}
+	// 	} else {
+	// 		delete(row, k)
+	// 	}
+	// }
+	//
+	// raw, err := json.Marshal(row)
+	// if err != nil {
+	// 	panic(err)
+	// }
+	//
+	// // prepare statment
+	// query := `INSERT INTO ` + table + ` JSON ?`
+	// stmt := canvas.Session.Query(query, raw)
+	//
+	// // insert row
+	// err = stmt.Exec()
+	// if err != nil {
+	//
+	// 	// fix error and try again
+	// 	canvas.checkGoCQLerr(table, row, err.(gocql.RequestError))
+	// 	canvas.AddRow(table, row)
+	//
+	// } else {
+	//
+	// 	// log only values of insert query
+	// 	log.Println(query)
+	// 	// log.Println("INSERT INTO", table, columns, "VALUES", values)
+	// }
 }
 
 func (canvas *Canvas) AddMissing(method string) {
