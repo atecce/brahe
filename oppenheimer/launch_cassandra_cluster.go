@@ -104,12 +104,13 @@ func installCassandra(instance *ec2.Instance) {
 			switch t := err.(type) {
 			case *net.OpError:
 				log.Println(t.Error())
-				time.Sleep(time.Second)
+				time.Sleep(5 * time.Second)
 				continue
 			default:
 				panic(err)
 			}
 		}
+		log.Println("Connected to", *instance.PublicDnsName)
 		session, err := conn.NewSession()
 		if err != nil {
 			panic(err)
@@ -121,7 +122,7 @@ func installCassandra(instance *ec2.Instance) {
 		addDependency := "printf '\n" +
 			"deb http://www.apache.org/dist/cassandra/debian 21x main\n" +
 			"deb-src http://www.apache.org/dist/cassandra/debian 21x main' | " +
-			"sudo tee -a /etc/apt/sources.list 1>/dev/null"
+			"sudo tee -a /etc/apt/sources.list"
 		addKey := "gpg --keyserver pgp.mit.edu --recv-keys 749D6EEC0353B12C && " +
 			"gpg --export --armor 749D6EEC0353B12C | " +
 			"sudo apt-key add -"

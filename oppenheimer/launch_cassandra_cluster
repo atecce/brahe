@@ -1,47 +1,47 @@
 #!/bin/bash
 
-# launch ubuntu instances
-aws ec2 run-instances --image-id ami-2d39803a --instance-type t2.micro --key-name testing --count $1
+# launch ubuntu instances TODO this could be general
+gcloud compute instances create brahe
 
 # need to wait for instances to start running
-sleep 60
+sleep 15
 
 # get instance domains
-DOMAINS=$(aws ec2 describe-instances --filter Name=instance-state-name,Values=running | grep ASSOCIATION | uniq | cut -f3)
-for domain in $DOMAINS; do
+INSTANCES=$(gcloud compute instances list | grep -v NAME | cut -d ' ' -f1)
+for instance in $INSTANCES; do
 
 	# install cassandra on each domain
-	ssh -oStrictHostKeyChecking=no -i $AWS_INSTANCE_KEY ubuntu@$domain \
+	gcloud compute ssh $instance --command \
 	'printf "\ndeb http://www.apache.org/dist/cassandra/debian 21x main\ndeb-src http://www.apache.org/dist/cassandra/debian 21x main" | \
 	sudo tee -a /etc/apt/sources.list && gpg --keyserver pgp.mit.edu --recv-keys 749D6EEC0353B12C && gpg --export --armor 749D6EEC0353B12C | \
 	sudo apt-key add - && sudo apt-get update && sudo apt-get -y install cassandra'
 
-done 
+done
 
-echo
-echo "Cassandra installed, giving it a second before configuring"
-echo
-
-sleep 30
-
-# shut cassandra down
-for domain in $DOMAINS; do
-
-	ssh -oStrictHostKeyChecking=no -i $AWS_INSTANCE_KEY ubuntu@$domain \
-	'sudo service cassandra stop && sudo rm -rf /var/lib/cassandra/data/system/*'
-
-done 
-
-# set cassandra config
-for domain in $DOMAINS; do
-
-	scp -i $AWS_INSTANCE_KEY $PWD/cassandra.yaml ubuntu@$domain:/etc/cassandra/cassandra.yaml
-
-done 
-
-# start cassandra up
-for domain in $DOMAINS; do
-
-	ssh -oStrictHostKeyChecking=no -i $AWS_INSTANCE_KEY ubuntu@$domain 'sudo service cassandra start'
-
-done 
+#echo
+#echo "Cassandra installed, giving it a second before configuring"
+#echo
+#
+#sleep 30
+#
+## shut cassandra down
+#for domain in $DOMAINS; do
+#
+#	ssh -oStrictHostKeyChecking=no -i $AWS_INSTANCE_KEY ubuntu@$domain \
+#	'sudo service cassandra stop && sudo rm -rf /var/lib/cassandra/data/system/*'
+#
+#done
+#
+## set cassandra config
+#for domain in $DOMAINS; do
+#
+#	scp -i $AWS_INSTANCE_KEY $PWD/cassandra.yaml ubuntu@$domain:/etc/cassandra/cassandra.yaml
+#
+#done
+#
+## start cassandra up
+#for domain in $DOMAINS; do
+#
+#	ssh -oStrictHostKeyChecking=no -i $AWS_INSTANCE_KEY ubuntu@$domain 'sudo service cassandra start'
+#
+#done
