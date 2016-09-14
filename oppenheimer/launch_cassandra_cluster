@@ -3,9 +3,6 @@
 # launch ubuntu instances TODO this could be general
 gcloud compute instances create brahe
 
-# need to wait for instances to start running
-sleep 15
-
 # get instance domains
 INSTANCES=$(gcloud compute instances list | grep -v NAME | cut -d ' ' -f1)
 for instance in $INSTANCES; do
