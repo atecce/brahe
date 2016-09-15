@@ -1,7 +1,9 @@
 package db
 
 import (
+	"log"
 	"reflect"
+	"strconv"
 	"strings"
 
 	"cloud.google.com/go/bigtable"
@@ -16,6 +18,7 @@ type Canvas struct {
 	ac     *bigtable.AdminClient
 }
 
+// TODO maybe close these
 func (canvas *Canvas) Initiate() {
 
 	// create admin client for adding tables and families
@@ -39,7 +42,6 @@ func (canvas *Canvas) AddTable(name string) {
 	if err != nil {
 		panic(err)
 	}
-
 }
 
 func (canvas *Canvas) addFamily(table, family string, columnType reflect.Type) {
@@ -51,8 +53,10 @@ func (canvas *Canvas) addFamily(table, family string, columnType reflect.Type) {
 
 func (canvas *Canvas) AddRow(table string, row map[string]interface{}) {
 
-	// set id
-	id := row["id"]
+	// get id into big endian
+	id := []byte(strconv.FormatFloat(row["id"].(float64), 'f', -1, 64))
+
+	log.Println("id: ", row["id"], id)
 
 	// TODO reflection and ApplyBulk
 	for family, column := range row {
@@ -61,39 +65,44 @@ func (canvas *Canvas) AddRow(table string, row map[string]interface{}) {
 			continue
 		}
 
+		log.Println("family: ", family, reflect.ValueOf(family).Kind())
+		log.Println("column: ", column, reflect.ValueOf(column).Kind())
+		log.Println()
+
+		if column != nil {
+
+			switch reflect.ValueOf(column).Kind() {
+
+			// create a table for slice TODO
+			case reflect.Float64:
+				delete(row, k)
+				for _, entry := range v.([]interface{}) {
+					log.Println(entry)
+				}
+			}
+		}
+
+		// 	// create a new table for additional map
+		// 	case reflect.Map:
+		// 		canvas.AddTable(k)
+		// 		delete(row, k)
+		//
+		// 		// recursion WTF
+		// 		canvas.AddRow(k, v.(map[string]interface{}))
+		// 		continue
+		// 	}
+		//
 		mut := bigtable.NewMutation()
-		mut.Set(family, column.(string), bigtable.ServerTime, id.([]byte))
+		mut.Set(family, column.(string), bigtable.ServerTime, id)
 
 		tbl := canvas.client.Open(table)
-		err := tbl.Apply(context.Background(), id.(string), mut)
+		err := tbl.Apply(context.Background(), string(id), mut)
 		if err != nil {
 			panic(err)
 		}
 
 	}
 
-	// for k, v := range row {
-	//
-	// 	if v != nil {
-	//
-	// 		switch reflect.ValueOf(v).Kind() {
-	//
-	// 		// create a table for slice TODO
-	// 		case reflect.Slice:
-	// 			delete(row, k)
-	// 			for _, entry := range v.([]interface{}) {
-	// 				log.Println(entry)
-	// 			}
-	//
-	// 		// create a new table for additional map
-	// 		case reflect.Map:
-	// 			canvas.AddTable(k)
-	// 			delete(row, k)
-	//
-	// 			// recursion WTF
-	// 			canvas.AddRow(k, v.(map[string]interface{}))
-	// 			continue
-	// 		}
 	// 	} else {
 	// 		delete(row, k)
 	// 	}
