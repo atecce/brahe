@@ -6,8 +6,16 @@ import (
 	"strconv"
 	"strings"
 
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+
 	"cloud.google.com/go/bigtable"
 	"golang.org/x/net/context"
+)
+
+const (
+	project  = "telos-143019"
+	instance = "uraniborg"
 )
 
 type Canvas struct {
@@ -22,14 +30,14 @@ type Canvas struct {
 func (canvas *Canvas) Initiate() {
 
 	// create admin client for adding tables and families
-	ac, err := bigtable.NewAdminClient(context.Background(), "telos-143019", "uraniborg")
+	ac, err := bigtable.NewAdminClient(context.Background(), project, instance)
 	if err != nil {
 		panic(err)
 	}
 	canvas.ac = ac
 
 	// create normal client for adding entries
-	client, err := bigtable.NewClient(context.Background(), "telos-143019", "uraniborg")
+	client, err := bigtable.NewClient(context.Background(), project, instance)
 	if err != nil {
 		panic(err)
 	}
@@ -40,11 +48,16 @@ func (canvas *Canvas) AddTable(name string) {
 
 	err := canvas.ac.CreateTable(context.Background(), name)
 	if err != nil {
+
+		if grpc.Code(err) == codes.AlreadyExists {
+			return
+		}
+
 		panic(err)
 	}
 }
 
-func (canvas *Canvas) addFamily(table, family string, columnType reflect.Type) {
+func (canvas *Canvas) addFamily(table, family string) {
 	err := canvas.ac.CreateColumnFamily(context.Background(), table, family)
 	if err != nil {
 		panic(err)
@@ -61,7 +74,8 @@ func (canvas *Canvas) AddRow(table string, row map[string]interface{}) {
 	// TODO reflection and ApplyBulk
 	for family, column := range row {
 
-		if family == "id" {
+		// skip id family and nil column
+		if family == "id" || column == nil {
 			continue
 		}
 
@@ -69,68 +83,52 @@ func (canvas *Canvas) AddRow(table string, row map[string]interface{}) {
 		log.Println("column: ", column, reflect.ValueOf(column).Kind())
 		log.Println()
 
-		// if column != nil {
-		//
-		// 	switch reflect.ValueOf(column).Kind() {
-		//
-		// 	// create a table for slice TODO
-		// 	case reflect.Float64:
-		// 		delete(row, k)
-		// 		for _, entry := range v.([]interface{}) {
-		// 			log.Println(entry)
-		// 		}
-		// 	}
-		// }
-
-		// 	// create a new table for additional map
-		// 	case reflect.Map:
-		// 		canvas.AddTable(k)
-		// 		delete(row, k)
-		//
-		// 		// recursion WTF
-		// 		canvas.AddRow(k, v.(map[string]interface{}))
-		// 		continue
-		// 	}
-		//
 		mut := bigtable.NewMutation()
-		mut.Set(family, column.(string), bigtable.ServerTime, id)
 
-		tbl := canvas.client.Open(table)
-		err := tbl.Apply(context.Background(), string(id), mut)
-		if err != nil {
-			panic(err)
+		switch reflect.ValueOf(column).Kind() {
+
+		// TODO handle subscriptions
+		case reflect.Slice:
+			continue
+
+		// recursively walk down nested tree
+		case reflect.Map:
+			canvas.AddRow(table, row)
+
+		case reflect.Float64:
+			typedColumn := strconv.FormatFloat(column.(float64), 'f', -1, 64)
+			mut.Set(family, string(typedColumn), bigtable.ServerTime, id)
+
+		case reflect.Bool:
+			typedColumn := strconv.FormatBool(column.(bool))
+			mut.Set(family, string(typedColumn), bigtable.ServerTime, id)
+
+		default:
+
+			mut.Set(family, column.(string), bigtable.ServerTime, id)
+
+		}
+	}
+}
+
+func (canvas *Canvas) addColumn(id []byte, family, table string, mut *bigtable.Mutation) {
+
+	// open table
+	tbl := canvas.client.Open(table)
+
+	// add column
+	err := tbl.Apply(context.Background(), string(id), mut)
+	if err != nil {
+
+		// add family and try again if family not found
+		if grpc.Code(err) == codes.NotFound {
+			canvas.addFamily(table, family)
+			canvas.addColumn(id, family, table, mut)
+			return
 		}
 
+		panic(err)
 	}
-
-	// 	} else {
-	// 		delete(row, k)
-	// 	}
-	// }
-	//
-	// raw, err := json.Marshal(row)
-	// if err != nil {
-	// 	panic(err)
-	// }
-	//
-	// // prepare statment
-	// query := `INSERT INTO ` + table + ` JSON ?`
-	// stmt := canvas.Session.Query(query, raw)
-	//
-	// // insert row
-	// err = stmt.Exec()
-	// if err != nil {
-	//
-	// 	// fix error and try again
-	// 	canvas.checkGoCQLerr(table, row, err.(gocql.RequestError))
-	// 	canvas.AddRow(table, row)
-	//
-	// } else {
-	//
-	// 	// log only values of insert query
-	// 	log.Println(query)
-	// 	// log.Println("INSERT INTO", table, columns, "VALUES", values)
-	// }
 }
 
 func (canvas *Canvas) AddMissing(method string) {

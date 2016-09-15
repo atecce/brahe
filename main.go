@@ -37,6 +37,8 @@ func main() {
 	// defer api.Canvas.Session.Close()
 	for _, table := range tables {
 
+		api.Canvas.AddTable(table)
+
 		// check for ids already present
 		// missing := api.Canvas.GetMissing(table)
 		// log.Println(missing)
