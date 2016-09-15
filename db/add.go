@@ -69,18 +69,18 @@ func (canvas *Canvas) AddRow(table string, row map[string]interface{}) {
 		log.Println("column: ", column, reflect.ValueOf(column).Kind())
 		log.Println()
 
-		if column != nil {
-
-			switch reflect.ValueOf(column).Kind() {
-
-			// create a table for slice TODO
-			case reflect.Float64:
-				delete(row, k)
-				for _, entry := range v.([]interface{}) {
-					log.Println(entry)
-				}
-			}
-		}
+		// if column != nil {
+		//
+		// 	switch reflect.ValueOf(column).Kind() {
+		//
+		// 	// create a table for slice TODO
+		// 	case reflect.Float64:
+		// 		delete(row, k)
+		// 		for _, entry := range v.([]interface{}) {
+		// 			log.Println(entry)
+		// 		}
+		// 	}
+		// }
 
 		// 	// create a new table for additional map
 		// 	case reflect.Map:

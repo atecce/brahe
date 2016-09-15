@@ -1,13 +1,14 @@
 package connection
 
 import (
-	"brahe/db"
 	"encoding/json"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"net/url"
 	"time"
+
+	"github.com/atecce/brahe/db"
 )
 
 type API struct {

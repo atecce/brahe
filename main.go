@@ -1,12 +1,13 @@
 package main
 
 import (
-	"brahe/connection"
-	"brahe/db"
 	"net/url"
 	"os"
 	"strconv"
 	"sync"
+
+	"github.com/atecce/brahe/connection"
+	"github.com/atecce/brahe/db"
 )
 
 //const trackID = 5151298
