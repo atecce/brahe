@@ -60,7 +60,19 @@ func (canvas *Canvas) AddTable(name string) {
 func (canvas *Canvas) addFamily(table, family string) {
 	err := canvas.ac.CreateColumnFamily(context.Background(), table, family)
 	if err != nil {
-		panic(err)
+
+		switch grpc.Code(err) {
+
+		case codes.NotFound:
+			canvas.AddTable(table)
+			canvas.addFamily(table, family)
+
+		case codes.AlreadyExists:
+			return
+
+		default:
+			panic(err)
+		}
 	}
 }
 
@@ -71,7 +83,7 @@ func (canvas *Canvas) AddRow(table string, row map[string]interface{}) {
 
 	log.Println("id: ", row["id"], id)
 
-	// TODO reflection and ApplyBulk
+	// TODO ApplyBulk (looks like not needed)
 	for family, column := range row {
 
 		// skip id family and nil column
@@ -79,12 +91,12 @@ func (canvas *Canvas) AddRow(table string, row map[string]interface{}) {
 			continue
 		}
 
+		log.Println("table: ", family)
 		log.Println("family: ", family, reflect.ValueOf(family).Kind())
 		log.Println("column: ", column, reflect.ValueOf(column).Kind())
 		log.Println()
 
-		mut := bigtable.NewMutation()
-
+		var typedColumn string
 		switch reflect.ValueOf(column).Kind() {
 
 		// TODO handle subscriptions
@@ -93,25 +105,25 @@ func (canvas *Canvas) AddRow(table string, row map[string]interface{}) {
 
 		// recursively walk down nested tree
 		case reflect.Map:
-			canvas.AddRow(table, row)
+			canvas.AddRow(family, column.(map[string]interface{}))
 
 		case reflect.Float64:
-			typedColumn := strconv.FormatFloat(column.(float64), 'f', -1, 64)
-			mut.Set(family, string(typedColumn), bigtable.ServerTime, id)
+			typedColumn = strconv.FormatFloat(column.(float64), 'f', -1, 64)
 
 		case reflect.Bool:
-			typedColumn := strconv.FormatBool(column.(bool))
-			mut.Set(family, string(typedColumn), bigtable.ServerTime, id)
+			typedColumn = strconv.FormatBool(column.(bool))
 
 		default:
-
-			mut.Set(family, column.(string), bigtable.ServerTime, id)
-
+			typedColumn = column.(string)
 		}
+		canvas.addColumn(id, family, typedColumn, table)
 	}
 }
 
-func (canvas *Canvas) addColumn(id []byte, family, table string, mut *bigtable.Mutation) {
+func (canvas *Canvas) addColumn(id []byte, family, typedColumn, table string) {
+
+	mut := bigtable.NewMutation()
+	mut.Set(family, typedColumn, bigtable.ServerTime, id)
 
 	// open table
 	tbl := canvas.client.Open(table)
@@ -120,10 +132,15 @@ func (canvas *Canvas) addColumn(id []byte, family, table string, mut *bigtable.M
 	err := tbl.Apply(context.Background(), string(id), mut)
 	if err != nil {
 
+		switch grpc.Code(err) {
+
+		case codes.InvalidArgument:
+			panic(err)
+
 		// add family and try again if family not found
-		if grpc.Code(err) == codes.NotFound {
+		case codes.NotFound:
 			canvas.addFamily(table, family)
-			canvas.addColumn(id, family, table, mut)
+			canvas.addColumn(id, family, typedColumn, table)
 			return
 		}
 
