@@ -22,11 +22,13 @@ func (api *API) Communicate(table string, method *url.URL) {
 
 		resp, err := http.Get(method.String())
 		if err != nil {
+			// TODO need more intelligent logging
 			log.Println(err.Error())
 			time.Sleep(time.Minute)
 			continue
 		}
 		defer resp.Body.Close()
+		// TODO need more intelligent logging
 		log.Printf("%s %s", method.Path, resp.Status)
 
 		switch resp.StatusCode {
@@ -58,6 +60,7 @@ func (api *API) decode(table string, body []byte) {
 	if err != nil {
 		panic(err)
 	}
+	// TODO need more intelligent logging
 	log.Println(row)
 
 	// add track to canvas
