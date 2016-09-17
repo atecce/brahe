@@ -15,7 +15,7 @@ type API struct {
 	Canvas *db.Canvas
 }
 
-func (api *API) Communicate(table string, method *url.URL) {
+func (api *API) Communicate(family string, method *url.URL) {
 
 	// never stop trying
 	for {
@@ -44,25 +44,27 @@ func (api *API) Communicate(table string, method *url.URL) {
 		default:
 			body, err := ioutil.ReadAll(resp.Body)
 			if err != nil {
-				panic(err)
+				// TODO need more intelligent logging
+				log.Println(err.Error())
+				time.Sleep(time.Minute)
 			}
-			api.decode(table, body)
+			entry := api.decode(family, body)
+
+			// add track to canvas
+			api.Canvas.AddEntry(method.Path, family, entry)
 			return
 		}
 	}
 }
 
-func (api *API) decode(table string, body []byte) {
+func (api *API) decode(family string, body []byte) map[string]interface{} {
 
 	// marshal json to type check
-	var row map[string]interface{}
-	err := json.Unmarshal(body, &row)
+	var entry map[string]interface{}
+	err := json.Unmarshal(body, &entry)
 	if err != nil {
 		panic(err)
 	}
-	// TODO need more intelligent logging
-	log.Println(row)
 
-	// add track to canvas
-	api.Canvas.AddRow(table, row)
+	return entry
 }

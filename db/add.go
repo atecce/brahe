@@ -4,7 +4,6 @@ import (
 	"log"
 	"reflect"
 	"strconv"
-	"strings"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -16,6 +15,7 @@ import (
 const (
 	project     = "telos-143019"
 	instance    = "uraniborg"
+	table       = "DeNovaStella"
 	bigtableMax = 16384
 )
 
@@ -27,10 +27,10 @@ type Canvas struct {
 	ac     *bigtable.AdminClient
 }
 
-// TODO maybe close these
 func (canvas *Canvas) Initiate() {
 
 	// create admin client for adding tables and families
+	// TODO maybe close these
 	ac, err := bigtable.NewAdminClient(context.Background(), project, instance)
 	if err != nil {
 		panic(err)
@@ -38,78 +38,52 @@ func (canvas *Canvas) Initiate() {
 	canvas.ac = ac
 
 	// create normal client for adding entries
+	// TODO maybe close these
 	client, err := bigtable.NewClient(context.Background(), project, instance)
 	if err != nil {
 		panic(err)
 	}
 	canvas.client = client
-}
 
-func (canvas *Canvas) AddTable(name string) {
-
-	err := canvas.ac.CreateTable(context.Background(), name)
+	// initialize table
+	err = canvas.ac.CreateTable(context.Background(), table)
 	switch grpc.Code(err) {
-	case codes.AlreadyExists:
-		return
-
-	// TODO handle internal error better
-	case codes.Internal:
-		log.Printf("Adding table %s resulted in internal error", name)
-	case codes.OK:
+	case codes.OK, codes.AlreadyExists:
 		return
 	default:
 		panic(err)
 	}
 }
 
-func (canvas *Canvas) addFamily(table, family string) {
+func (canvas *Canvas) AddFamily(family string) {
 	err := canvas.ac.CreateColumnFamily(context.Background(), table, family)
 	switch grpc.Code(err) {
-
-	case codes.OK:
+	case codes.OK, codes.AlreadyExists:
 		return
-
-	// TODO handle internal error better
-	case codes.Internal:
-		log.Printf("Adding family %s to table %s resulted in internal error", family, table)
-
-	case codes.NotFound:
-		canvas.AddTable(table)
-		canvas.addFamily(table, family)
-
-	case codes.AlreadyExists:
-		return
-
 	default:
 		panic(err)
 	}
 }
 
-func (canvas *Canvas) AddRow(table string, row map[string]interface{}) {
-
-	// get id into big endian
-	id := []byte(strconv.FormatFloat(row["id"].(float64), 'f', -1, 64))
-
-	// TODO need more intelligent logging
-	log.Println("id: ", row["id"], id)
+func (canvas *Canvas) AddEntry(row, family string, entry map[string]interface{}) {
 
 	// TODO ApplyBulk (looks like not needed)
-	for family, column := range row {
+	for column, typedValue := range entry {
 
-		// skip id family and nil column
-		if family == "id" || column == nil {
+		// skip id column and nil values
+		if typedValue == nil {
 			continue
 		}
 
 		// TODO need more intelligent logging
-		log.Println("table: ", family)
-		log.Println("family: ", family, reflect.ValueOf(family).Kind())
+		log.Println("family: ", family)
 		log.Println("column: ", column, reflect.ValueOf(column).Kind())
+		log.Println("value: ", typedValue, reflect.ValueOf(typedValue).Kind())
 		log.Println()
 
-		// determine column type
-		var typedColumn string
-		switch reflect.ValueOf(column).Kind() {
+		// convert value to string
+		var value []byte
+		switch reflect.ValueOf(typedValue).Kind() {
 
 		// TODO handle subscriptions
 		case reflect.Slice:
@@ -117,69 +91,64 @@ func (canvas *Canvas) AddRow(table string, row map[string]interface{}) {
 
 		// recursively walk down nested tree
 		case reflect.Map:
-			canvas.AddRow(family, column.(map[string]interface{}))
+			canvas.AddEntry(row, column, typedValue.(map[string]interface{}))
 
 		// handle basic data types
 		case reflect.Float64:
-			typedColumn = strconv.FormatFloat(column.(float64), 'f', -1, 64)
+			value = []byte(strconv.FormatFloat(typedValue.(float64), 'f', -1, 64))
 		case reflect.Bool:
-			typedColumn = strconv.FormatBool(column.(bool))
+			value = []byte(strconv.FormatBool(typedValue.(bool)))
 
 		// make sure string is below bigtable's maximum length
 		default:
-			typedColumn = column.(string)
-			if len(typedColumn) > bigtableMax {
+			value = []byte(typedValue.(string))
+			if len(value) > bigtableMax {
 				// TODO need more intelligent logging
-				log.Printf("Column %s in family %s too long", typedColumn, family)
-				typedColumn = typedColumn[:bigtableMax]
+				log.Printf("Value %s in column %s too long", value, column)
+				value = value[:bigtableMax]
 			}
 		}
-		canvas.addColumn(id, family, typedColumn, table)
+
+		// add column
+		log.Println("Adding entry")
+		canvas.addColumn(row, family, column, value)
 	}
 }
 
-func (canvas *Canvas) addColumn(id []byte, family, typedColumn, table string) {
-
-	// set mutation
-	mut := bigtable.NewMutation()
-	mut.Set(family, typedColumn, bigtable.ServerTime, id)
+func (canvas *Canvas) addColumn(row, family, column string, value []byte) {
 
 	// open table
 	tbl := canvas.client.Open(table)
 
+	// set mutation
+	mut := bigtable.NewMutation()
+	mut.Set(family, column, bigtable.ServerTime, value)
+
 	// add column
-	err := tbl.Apply(context.Background(), string(id), mut)
+	err := tbl.Apply(context.Background(), row, mut)
 	switch grpc.Code(err) {
 	case codes.OK:
 		return
-
-	// TODO handle internal error better
-	case codes.Internal:
-		log.Printf("Adding column to family %s in table %s resulted in internal error", family, table)
-
-	// add family and try again if family not found
+	// column family not found
 	case codes.NotFound:
-		canvas.addFamily(table, family)
-		canvas.addColumn(id, family, typedColumn, table)
-		return
-
+		canvas.AddFamily(family)
 	default:
 		panic(err)
 	}
 }
 
-func (canvas *Canvas) AddMissing(method string) {
-
-	// split REST method
-	dbInfo := strings.Split(method, "/")
-
-	// table name is first entry without plural
-	table := "missing_" + dbInfo[0][:len(dbInfo[0])-1]
-
-	// row is an id in the second entry
-	row := map[string]interface{}{"id": dbInfo[1]}
-
-	// add missing entry
-	canvas.AddTable(table)
-	canvas.AddRow(table, row)
-}
+// func (canvas *Canvas) AddMissing(method string) {
+//
+// 	// split REST method
+// 	dbInfo := strings.Split(method, "/")
+//
+// 	// table name is first entry without plural
+// 	table := "missing_" + dbInfo[0][:len(dbInfo[0])-1]
+//
+// 	// entry is an id in the second entry
+// 	entry := map[string]interface{}{"id": dbInfo[1]}
+//
+// 	// add missing entry
+// 	canvas.AddTable(table)
+// 	canvas.AddEntry(table, entry)
+// }

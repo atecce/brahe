@@ -21,7 +21,7 @@ var api = &connection.API{
 	},
 }
 
-var tables = []string{
+var families = []string{
 	"user",
 	"track",
 	"playlist",
@@ -35,9 +35,9 @@ func main() {
 	// set the canvas TODO maybe close the clients
 	api.Canvas.Initiate()
 	// defer api.Canvas.Session.Close()
-	for _, table := range tables {
+	for _, family := range families {
 
-		api.Canvas.AddTable(table)
+		api.Canvas.AddFamily(family)
 
 		// check for ids already present
 		// missing := api.Canvas.GetMissing(table)
@@ -45,7 +45,7 @@ func main() {
 
 		// populate tables concurrently
 		wg.Add(1)
-		go func(table string) {
+		go func(family string) {
 			defer wg.Done()
 
 			// input entries we know about
@@ -56,15 +56,15 @@ func main() {
 				method := &url.URL{
 					Scheme:   "http",
 					Host:     "api.soundcloud.com",
-					Path:     table + "s/" + strconv.Itoa(id),
+					Path:     family + "s/" + strconv.Itoa(id),
 					RawQuery: "client_id=" + os.Getenv("CLIENT_ID"),
 				}
 
 				// try and communicate
-				api.Communicate(table, method)
+				api.Communicate(family, method)
 				// }
 			}
-		}(table)
+		}(family)
 	}
 
 	wg.Wait()
