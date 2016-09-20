@@ -15,13 +15,10 @@ import (
 const (
 	project     = "telos-143019"
 	instance    = "uraniborg"
-	table       = "DeNovaStella"
 	bigtableMax = 16384
 )
 
 type Canvas struct {
-	Kind   string
-	IP     string
 	Name   string
 	client *bigtable.Client
 	ac     *bigtable.AdminClient
@@ -46,20 +43,22 @@ func (canvas *Canvas) Initiate() {
 	canvas.client = client
 
 	// initialize table
-	err = canvas.ac.CreateTable(context.Background(), table)
+	err = canvas.ac.CreateTable(context.Background(), canvas.Name)
 	switch grpc.Code(err) {
 	case codes.OK, codes.AlreadyExists:
-		return
 	default:
 		panic(err)
 	}
+
+	// initialize families
+	canvas.AddFamily("follows")
+	canvas.AddFamily("favorites")
 }
 
 func (canvas *Canvas) AddFamily(family string) {
-	err := canvas.ac.CreateColumnFamily(context.Background(), table, family)
+	err := canvas.ac.CreateColumnFamily(context.Background(), canvas.Name, family)
 	switch grpc.Code(err) {
 	case codes.OK, codes.AlreadyExists:
-		return
 	default:
 		panic(err)
 	}
@@ -70,7 +69,7 @@ func (canvas *Canvas) AddEntry(row, family string, entry map[string]interface{})
 	// TODO ApplyBulk (looks like not needed)
 	for column, typedValue := range entry {
 
-		// skip id column and nil values
+		// skip and nil values
 		if typedValue == nil {
 			continue
 		}
@@ -83,33 +82,33 @@ func (canvas *Canvas) AddEntry(row, family string, entry map[string]interface{})
 
 		// convert value to string
 		var value []byte
-		switch reflect.ValueOf(typedValue).Kind() {
-
-		// TODO handle subscriptions
-		case reflect.Slice:
-			continue
+		switch typedValue.(type) {
 
 		// recursively walk down nested tree
-		case reflect.Map:
+		case map[string]interface{}:
 			canvas.AddEntry(row, column, typedValue.(map[string]interface{}))
 
 		// handle basic data types
-		case reflect.Float64:
+		case float64:
 			value = []byte(strconv.FormatFloat(typedValue.(float64), 'f', -1, 64))
-		case reflect.Bool:
+		case bool:
 			value = []byte(strconv.FormatBool(typedValue.(bool)))
 
 		// make sure string is below bigtable's maximum length
-		default:
+		case string:
 			value = []byte(typedValue.(string))
 			if len(value) > bigtableMax {
 				// TODO need more intelligent logging
 				log.Printf("Value %s in column %s too long", value, column)
 				value = value[:bigtableMax]
 			}
+
+		default:
+			panic(typedValue)
 		}
 
 		// add column
+		// TODO need more intelligent logging
 		log.Println("Adding entry")
 		canvas.addColumn(row, family, column, value)
 	}
@@ -118,7 +117,7 @@ func (canvas *Canvas) AddEntry(row, family string, entry map[string]interface{})
 func (canvas *Canvas) addColumn(row, family, column string, value []byte) {
 
 	// open table
-	tbl := canvas.client.Open(table)
+	tbl := canvas.client.Open(canvas.Name)
 
 	// set mutation
 	mut := bigtable.NewMutation()
@@ -129,7 +128,6 @@ func (canvas *Canvas) addColumn(row, family, column string, value []byte) {
 	switch grpc.Code(err) {
 	case codes.OK:
 		return
-	// column family not found
 	case codes.NotFound:
 		canvas.AddFamily(family)
 	default:

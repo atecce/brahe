@@ -15,17 +15,15 @@ import (
 var api = &connection.API{
 
 	Canvas: &db.Canvas{
-		Kind: "mysql",
-		IP:   "127.0.0.1",
 		Name: "canvas",
 	},
 }
 
-var families = []string{
-	"user",
-	"track",
-	"playlist",
-	"comment",
+var resources = map[string][]string{
+	// "users":     {"tracks", "playlists", "followings", "followers", "comments", "favorites"},
+	// "tracks":    {"comments", "favoriters"},
+	"playlists": nil,
+	"comments":  nil,
 }
 
 var wg sync.WaitGroup
@@ -33,39 +31,53 @@ var wg sync.WaitGroup
 func main() {
 
 	// set the canvas TODO maybe close the clients
-	api.Canvas.Initiate()
+	// api.Canvas.Initiate()
 	// defer api.Canvas.Session.Close()
-	for _, family := range families {
+	for id := 0; ; id++ {
+		for resource := range resources {
 
-		api.Canvas.AddFamily(family)
+			subresources := resources[resource]
 
-		// check for ids already present
-		// missing := api.Canvas.GetMissing(table)
-		// log.Println(missing)
+			// api.Canvas.AddFamily(resource)
 
-		// populate tables concurrently
-		wg.Add(1)
-		go func(family string) {
-			defer wg.Done()
+			// check for ids already present
+			// missing := api.Canvas.GetMissing(table)
+			// log.Println(missing)
 
-			// input entries we know about
-			for id := 0; ; id++ {
+			methodPath := resource + "/" + strconv.Itoa(id)
+
+			// construct method
+			method := &url.URL{
+				Scheme:   "http",
+				Host:     "api.soundcloud.com",
+				Path:     methodPath,
+				RawQuery: "client_id=" + os.Getenv("CLIENT_ID"),
+			}
+
+			// try and communicate
+			if skip := api.Communicate(resource, method); skip {
+				continue
+			}
+
+			for _, subresource := range subresources {
+
+				// populate tables concurrently
+				// wg.Add(1)
+				// go func(resource, subresource string) {
+				// 	defer wg.Done()
+
+				// input entries we know about
 				// if _, ok := missing[id]; !ok {
 
-				// attempt to get info on trackID
-				method := &url.URL{
-					Scheme:   "http",
-					Host:     "api.soundcloud.com",
-					Path:     family + "s/" + strconv.Itoa(id),
-					RawQuery: "client_id=" + os.Getenv("CLIENT_ID"),
-				}
-
-				// try and communicate
-				api.Communicate(family, method)
+				// check each subresource
+				method.Path = methodPath + "/" + subresource
+				api.Communicate(resource, method)
 				// }
 			}
-		}(family)
+			// }(resource, subresource)
+		}
+		println()
 	}
 
-	wg.Wait()
+	// wg.Wait()
 }
