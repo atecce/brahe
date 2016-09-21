@@ -14,17 +14,18 @@ import (
 //const trackID = 5151298
 
 const (
-	table  = "tracks"
-	family = "favoriters"
+	table  = "users"
+	family = "favorites"
 )
+
+var deNovaStella = &canvas.Canvas{}
 
 func main() {
 
 	// set the canvas
-	deNovaStella := &canvas.Canvas{}
 	deNovaStella.Initiate()
-	deNovaStella.Client.Close()
-	deNovaStella.AC.Close()
+	defer deNovaStella.Client.Close()
+	defer deNovaStella.AC.Close()
 	deNovaStella.AddTable(table)
 	deNovaStella.AddFamily(table, family)
 

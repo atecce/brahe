@@ -22,14 +22,14 @@ type Canvas struct {
 func (canvas *Canvas) Initiate() {
 
 	// create admin client for adding tables and families
-	ac, err := bigtable.NewAdminClient(context.Background(), "telos-143019", "uraniborg")
+	ac, err := bigtable.NewAdminClient(context.Background(), project, instance)
 	if err != nil {
 		panic(err)
 	}
 	canvas.AC = ac
 
 	// create normal client for adding entries
-	client, err := bigtable.NewClient(context.Background(), "telos-143019", "uraniborg")
+	client, err := bigtable.NewClient(context.Background(), project, instance)
 	if err != nil {
 		panic(err)
 	}
