@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/url"
 	"os"
 	"strconv"
@@ -24,13 +23,17 @@ func main() {
 
 	// set the canvas
 	deNovaStella.Initiate()
-	defer deNovaStella.Client.Close()
-	defer deNovaStella.AC.Close()
+	defer deNovaStella.Close()
 	deNovaStella.AddTable(table)
 	deNovaStella.AddFamily(table, family)
 
+	id, err := strconv.Atoi(os.Args[1])
+	if err != nil {
+		panic(err)
+	}
+
 	// observe the heavens
-	for id := 1; ; id++ {
+	for ; ; id++ {
 
 		// construct method
 		methodPath := table + "/" + strconv.Itoa(id)
@@ -49,7 +52,6 @@ func main() {
 		var user map[string]interface{}
 		json.Unmarshal(body, &user)
 		row := user["permalink"].(string)
-		fmt.Println(row)
 
 		// get favoriters info
 		method.Path = methodPath + "/" + family
@@ -58,7 +60,6 @@ func main() {
 		json.Unmarshal(body, &elements)
 		for _, element := range elements {
 			column := element.(map[string]interface{})["permalink"].(string)
-			fmt.Println("\t", column)
 			deNovaStella.Record(table, row, family, column)
 		}
 	}

@@ -33,6 +33,7 @@ func Observe(method *url.URL) []byte {
 			if err != nil {
 				log.Println(err) // TODO
 				time.Sleep(time.Minute)
+				continue
 			}
 			return body
 		}

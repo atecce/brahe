@@ -15,8 +15,8 @@ const (
 )
 
 type Canvas struct {
-	Client *bigtable.Client
-	AC     *bigtable.AdminClient
+	client *bigtable.Client
+	ac     *bigtable.AdminClient
 }
 
 func (canvas *Canvas) Initiate() {
@@ -26,18 +26,23 @@ func (canvas *Canvas) Initiate() {
 	if err != nil {
 		panic(err)
 	}
-	canvas.AC = ac
+	canvas.ac = ac
 
 	// create normal client for adding entries
 	client, err := bigtable.NewClient(context.Background(), project, instance)
 	if err != nil {
 		panic(err)
 	}
-	canvas.Client = client
+	canvas.client = client
+}
+
+func (canvas *Canvas) Close() {
+	canvas.client.Close()
+	canvas.ac.Close()
 }
 
 func (canvas *Canvas) AddTable(table string) {
-	err := canvas.AC.CreateTable(context.Background(), table)
+	err := canvas.ac.CreateTable(context.Background(), table)
 	switch grpc.Code(err) {
 	case codes.OK, codes.AlreadyExists:
 	default:
@@ -46,7 +51,7 @@ func (canvas *Canvas) AddTable(table string) {
 }
 
 func (canvas *Canvas) AddFamily(table, family string) {
-	err := canvas.AC.CreateColumnFamily(context.Background(), table, family)
+	err := canvas.ac.CreateColumnFamily(context.Background(), table, family)
 	switch grpc.Code(err) {
 	case codes.OK, codes.AlreadyExists:
 	default:
@@ -57,7 +62,7 @@ func (canvas *Canvas) AddFamily(table, family string) {
 func (canvas *Canvas) Record(table, row, family, column string) {
 
 	// open table
-	tbl := canvas.Client.Open(table)
+	tbl := canvas.client.Open(table)
 
 	// set mutation
 	mut := bigtable.NewMutation()
