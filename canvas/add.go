@@ -75,6 +75,8 @@ func (canvas *Canvas) Record(table, row, family, column string) {
 		return
 	case codes.NotFound:
 		canvas.AddFamily(table, family)
+	case codes.Internal:
+		canvas.Initiate()
 	default:
 		panic(err)
 	}
