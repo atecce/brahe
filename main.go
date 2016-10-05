@@ -1,13 +1,14 @@
 package main
 
 import (
-	"bodhi/connection"
-	"bodhi/db"
 	"log"
 	"net/url"
 	"os"
 	"strconv"
 	"sync"
+
+	"github.com/atecce/brahe/connection"
+	"github.com/atecce/brahe/db"
 )
 
 //const trackID = 5151298
