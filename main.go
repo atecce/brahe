@@ -2,11 +2,11 @@ package main
 
 import (
 	"encoding/json"
+	"log"
 	"net/url"
 	"os"
 	"strconv"
 
-	"github.com/atecce/brahe/canvas"
 	"github.com/atecce/brahe/heavens"
 )
 
@@ -17,15 +17,26 @@ const (
 	family = "favorites"
 )
 
-var deNovaStella = &canvas.Canvas{}
+// var deNovaStella = &canvas.Canvas{}
+
+func openFile(filename string) *os.File {
+	f, err := os.Create(filename)
+	if err != nil {
+		panic(err)
+	}
+	return f
+}
 
 func main() {
 
 	// set the canvas
-	deNovaStella.Initiate()
-	defer deNovaStella.Close()
-	deNovaStella.AddTable(table)
-	deNovaStella.AddFamily(table, family)
+	// deNovaStella.Initiate()
+	// defer deNovaStella.Close()
+	// deNovaStella.AddTable(table)
+	// deNovaStella.AddFamily(table, family)
+
+	favorites := openFile("favorites.txt")
+	defer favorites.Close()
 
 	id, err := strconv.Atoi(os.Args[1])
 	if err != nil {
@@ -44,23 +55,27 @@ func main() {
 			RawQuery: "client_id=" + os.Getenv("CLIENT_ID"),
 		}
 
-		// get track info
+		// get user info
 		body := heavens.Observe(method)
 		if body == nil {
 			continue
 		}
 		var user map[string]interface{}
 		json.Unmarshal(body, &user)
-		row := user["permalink"].(string)
+		userID := strconv.FormatFloat(user["id"].(float64), 'f', -1, 64)
 
 		// get favoriters info
 		method.Path = methodPath + "/" + family
 		body = heavens.Observe(method)
-		var elements []interface{}
-		json.Unmarshal(body, &elements)
-		for _, element := range elements {
-			column := element.(map[string]interface{})["permalink"].(string)
-			deNovaStella.Record(table, row, family, column)
+		var songs []interface{}
+		json.Unmarshal(body, &songs)
+		for _, song := range songs {
+			trackID := strconv.FormatFloat(song.(map[string]interface{})["id"].(float64), 'f', -1, 64)
+			log.Println("trackID:", trackID)
+			_, err := favorites.WriteString(userID + "\t" + trackID + "\n")
+			if err != nil {
+				panic(err)
+			}
 		}
 	}
 }
