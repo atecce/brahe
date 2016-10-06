@@ -1,7 +1,6 @@
 package heavens
 
 import (
-	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -21,7 +20,7 @@ func Observe(method *url.URL) []byte {
 			continue
 		}
 		defer resp.Body.Close()
-		fmt.Printf("%s %s\n", method.Path, resp.Status) // TODO
+		log.Printf("%s %s\n", method.Path, resp.Status) // TODO
 
 		switch resp.StatusCode {
 		case 403, 404: // TODO

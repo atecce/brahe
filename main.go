@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"log"
 	"net/url"
 	"os"
 	"strconv"
@@ -17,34 +16,17 @@ const (
 	family = "favorites"
 )
 
-// var deNovaStella = &canvas.Canvas{}
-
-func openFile(filename string) *os.File {
-	f, err := os.Create(filename)
-	if err != nil {
-		panic(err)
-	}
-	return f
-}
-
 func main() {
 
-	// set the canvas
-	// deNovaStella.Initiate()
-	// defer deNovaStella.Close()
-	// deNovaStella.AddTable(table)
-	// deNovaStella.AddFamily(table, family)
-
-	favorites := openFile("favorites.txt")
-	defer favorites.Close()
-
-	id, err := strconv.Atoi(os.Args[1])
+	// initalize file
+	favorites, err := os.Create("favorites.txt")
 	if err != nil {
 		panic(err)
 	}
+	defer favorites.Close()
 
 	// observe the heavens
-	for ; ; id++ {
+	for id := 1; ; id++ {
 
 		// construct method
 		methodPath := table + "/" + strconv.Itoa(id)
@@ -71,7 +53,8 @@ func main() {
 		json.Unmarshal(body, &songs)
 		for _, song := range songs {
 			trackID := strconv.FormatFloat(song.(map[string]interface{})["id"].(float64), 'f', -1, 64)
-			log.Println("trackID:", trackID)
+
+			// record the observation
 			_, err := favorites.WriteString(userID + "\t" + trackID + "\n")
 			if err != nil {
 				panic(err)
