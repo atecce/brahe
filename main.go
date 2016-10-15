@@ -1,10 +1,12 @@
 package main
 
 import (
+	"bufio"
 	"encoding/json"
 	"net/url"
 	"os"
 	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/atecce/brahe/heavens"
@@ -12,18 +14,45 @@ import (
 
 //const trackID = 5151298
 
-const (
-	table  = "users"
-	family = "favorites"
-)
+const filename = "favorites.txt"
 
 var wg sync.WaitGroup
+
+// pick up where you left off
+func findMaxID(favorites *os.File) int {
+
+	// initialize maximum
+	var maxID int
+
+	// iterate through file line by line
+	scanner := bufio.NewScanner(favorites)
+	for scanner.Scan() {
+
+		// extract ID from line
+		id, err := strconv.Atoi(strings.Split(scanner.Text(), "\t")[0])
+		if err != nil {
+			panic(err)
+		}
+
+		// test maximum ID
+		if id > maxID {
+			maxID = id
+		}
+	}
+
+	// check for scanning errors
+	if err := scanner.Err(); err != nil {
+		panic(err)
+	}
+
+	return maxID
+}
 
 func main() {
 
 	// check user input
 	if len(os.Args) != 2 {
-		println("Usage: brahe <braching factor>")
+		println("\nUsage: brahe <braching factor>\n")
 		os.Exit(1)
 	}
 
@@ -33,15 +62,15 @@ func main() {
 		panic(err)
 	}
 
-	// initalize file
-	favorites, err := os.Create("favorites.txt")
+	// initialize file
+	favorites, err := os.OpenFile(filename, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0600)
 	if err != nil {
 		panic(err)
 	}
 	defer favorites.Close()
 
 	// observe the heavens
-	for id := 1; ; id++ {
+	for id := findMaxID(favorites); ; id++ {
 
 		// look at b stars at a time
 		if id%b == 0 {
@@ -52,7 +81,7 @@ func main() {
 			defer wg.Done()
 
 			// construct method
-			methodPath := table + "/" + strconv.Itoa(id)
+			methodPath := "users/" + strconv.Itoa(id)
 			method := &url.URL{
 				Scheme:   "http",
 				Host:     "api.soundcloud.com",
@@ -70,7 +99,7 @@ func main() {
 			userID := strconv.FormatFloat(user["id"].(float64), 'f', -1, 64)
 
 			// get favoriters info
-			method.Path = methodPath + "/" + family
+			method.Path = methodPath + "/favorites"
 			body = heavens.Observe(method)
 			var songs []interface{}
 			json.Unmarshal(body, &songs)
