@@ -16,7 +16,10 @@ import (
 
 const filename = "favorites.txt"
 
-var wg sync.WaitGroup
+var (
+	wg    sync.WaitGroup
+	mutex sync.Mutex
+)
 
 // pick up where you left off
 func findMaxID(favorites *os.File) int {
@@ -107,10 +110,12 @@ func main() {
 				trackID := strconv.FormatFloat(song.(map[string]interface{})["id"].(float64), 'f', -1, 64)
 
 				// record the observation
+				mutex.Lock()
 				_, err := favorites.WriteString(userID + "\t" + trackID + "\n")
 				if err != nil {
 					panic(err)
 				}
+				mutex.Unlock()
 			}
 		}(id)
 	}
