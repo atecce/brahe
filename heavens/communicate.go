@@ -15,12 +15,12 @@ func Observe(method *url.URL) []byte {
 
 		resp, err := http.Get(method.String())
 		if err != nil {
-			log.Println(err) // TODO
+			log.Println("ERROR", err) // TODO
 			time.Sleep(time.Minute)
 			continue
 		}
 		defer resp.Body.Close()
-		log.Printf("%s %s\n", method.Path, resp.Status) // TODO
+		log.Printf("INFO %s %s\n", method.Path, resp.Status) // TODO
 
 		switch resp.StatusCode {
 		case 403, 404: // TODO
@@ -30,7 +30,7 @@ func Observe(method *url.URL) []byte {
 		default:
 			body, err := ioutil.ReadAll(resp.Body)
 			if err != nil {
-				log.Println(err) // TODO
+				log.Println("ERROR", err) // TODO
 				time.Sleep(time.Minute)
 				continue
 			}
