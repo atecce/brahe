@@ -2,10 +2,12 @@ package main
 
 import (
 	"encoding/json"
+	"log"
 	"net/url"
 	"os"
 	"strconv"
 	"sync"
+	"time"
 
 	"github.com/atecce/brahe/heavens"
 	"github.com/gocql/gocql"
@@ -13,28 +15,21 @@ import (
 
 //const trackID = 5151298
 
-const filename = "favorites.txt"
-
-var (
-	wg    sync.WaitGroup
-	mutex sync.Mutex
-)
-
 // pick up where you left off
 func findMaxID(session *gocql.Session) int {
-
-	// initialize maximum
 	var maxID int
-
 	if err := session.Query(`SELECT MAX(userID) FROM favorites`).
 		Scan(&maxID); err != nil {
 		panic(err)
 	}
-
 	return maxID
 }
 
 func main() {
+
+	const filename = "favorites.txt"
+
+	var wg sync.WaitGroup
 
 	// check user input
 	if len(os.Args) != 2 {
@@ -50,23 +45,32 @@ func main() {
 
 	// initialize cluster
 	cluster := gocql.NewCluster("127.0.0.1")
-	cluster.Keyspace = "de_nova_stella"
 	cluster.ProtoVersion = 4
+	cluster.Keyspace = "de_nova_stella"
 	session, err := cluster.CreateSession()
 	if err != nil {
 		panic(err)
 	}
 	defer session.Close()
 
+	// figure out where to start
+	var startID int
+	if maxID := findMaxID(session); maxID < 1000 {
+		startID = 0
+	} else {
+		startID = maxID - 1000
+	}
+
 	// observe the heavens
-	for id := (findMaxID(session) / 1000) * 1000; ; id++ {
+	for id := startID; ; id++ {
 
 		// look at b stars at a time
 		if id%b == 0 {
+			log.Println("INFO Waiting...")
 			wg.Wait()
 		}
 		wg.Add(1)
-		go func(id int) {
+		go func(id int, wg *sync.WaitGroup) {
 			defer wg.Done()
 
 			// construct method
@@ -95,12 +99,24 @@ func main() {
 			for _, song := range songs {
 				trackID := strconv.FormatFloat(song.(map[string]interface{})["id"].(float64), 'f', -1, 64)
 
-				// record the observation
-				if err := session.Query(`INSERT INTO favorites (userID, trackID) VALUES (?, ?)`,
-					userID, trackID).Exec(); err != nil {
-					panic(err)
+				for {
+
+					// record the observation
+					if err := session.Query(`INSERT INTO favorites (userID, trackID) VALUES (?, ?)`,
+						userID, trackID).Exec(); err != nil {
+
+						if err == gocql.ErrTimeoutNoResponse {
+							log.Println("ERROR", err)
+							time.Sleep(time.Minute)
+							continue
+						}
+
+						panic(err)
+					}
+
+					break
 				}
 			}
-		}(id)
+		}(id, &wg)
 	}
 }
