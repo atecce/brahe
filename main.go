@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/url"
 	"os"
+	"os/signal"
 	"strconv"
 	"sync"
 	"time"
@@ -26,8 +27,6 @@ func findMaxID(session *gocql.Session) int {
 }
 
 func main() {
-
-	const filename = "favorites.txt"
 
 	var wg sync.WaitGroup
 
@@ -51,7 +50,16 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	defer session.Close()
+
+	// listen for interrupt to clean up
+	listener := make(chan os.Signal, 1)
+	signal.Notify(listener, os.Interrupt)
+	go func() {
+		<-listener
+		log.Println("INFO closing session")
+		session.Close()
+		os.Exit(0)
+	}()
 
 	// figure out where to start
 	var startID int
